@@ -6,6 +6,54 @@ namespace Codrio.Tests;
 public class NamespaceBuilderTests
 {
     [Fact]
+    public void EmptyFileScopedNamespace_RendersSemicolon()
+    {
+        OutputAssert.Equal("namespace A;\n", CSharp.FileScopedNamespace("A").ToString());
+    }
+
+    [Fact]
+    public void FileScopedNamespace_InvokesConfigureImmediatelyAndRendersClassesWithoutIndentation()
+    {
+        NamespaceBuilder? configured = null;
+        var calls = 0;
+        var builder = CSharp.FileScopedNamespace("A.B", n =>
+        {
+            configured = n;
+            calls++;
+            n.Class("C").Class("D");
+        });
+        const string expected = "namespace A.B;\n\nclass C\n{\n}\n\nclass D\n{\n}\n";
+
+        Assert.Same(builder, configured);
+        Assert.Equal(1, calls);
+        OutputAssert.Equal(expected, builder.ToString());
+        OutputAssert.Equal(expected, builder.ToString());
+        Assert.Equal(1, calls);
+        CompilationAssert.NoErrors(builder.ToString());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("A.B")]
+    [InlineData("not a namespace!")]
+    [InlineData("class")]
+    public void FileScopedNamespace_WritesNameWithoutValidation(string name)
+    {
+        OutputAssert.Equal("namespace " + name + ";\n", CSharp.FileScopedNamespace(name).ToString());
+    }
+
+    [Fact]
+    public void FileScopedNamespaceNullArguments_ThrowWithParameterName()
+    {
+        var configured = false;
+
+        Assert.Throws<ArgumentNullException>("name", () => CSharp.FileScopedNamespace(null!));
+        Assert.Throws<ArgumentNullException>("name", () => CSharp.FileScopedNamespace(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("configure", () => CSharp.FileScopedNamespace("A", null!));
+        Assert.False(configured);
+    }
+
+    [Fact]
     public void EmptyNamespace_RendersEmptyBlock()
     {
         OutputAssert.Equal("namespace A\n{\n}\n", CSharp.Namespace("A").ToString());

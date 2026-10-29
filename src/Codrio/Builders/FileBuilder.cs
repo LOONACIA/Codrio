@@ -61,6 +61,21 @@ public sealed class FileBuilder
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
     public FileBuilder Namespace(string name, Action<NamespaceBuilder> configure) => Add(CSharp.Namespace(name, configure));
 
+    /// <summary>Adds an empty file-scoped namespace declaration.</summary>
+    /// <remarks>A file may contain only one file-scoped namespace, before any type declarations, and cannot mix it with block namespaces. These constraints are not validated.</remarks>
+    /// <param name="name">The namespace name, written without validation.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    public FileBuilder FileScopedNamespace(string name) => Add(CSharp.FileScopedNamespace(name));
+
+    /// <summary>Immediately configures a new file-scoped namespace builder and adds it to the file.</summary>
+    /// <remarks>A file may contain only one file-scoped namespace, before any type declarations, and cannot mix it with block namespaces. These constraints are not validated.</remarks>
+    /// <param name="name">The namespace name, written without validation.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    public FileBuilder FileScopedNamespace(string name, Action<NamespaceBuilder> configure) => Add(CSharp.FileScopedNamespace(name, configure));
+
     /// <summary>Adds the supplied namespace builder by reference without copying it.</summary>
     /// <param name="namespaceBuilder">The namespace builder to add.</param>
     /// <returns>This file builder.</returns>

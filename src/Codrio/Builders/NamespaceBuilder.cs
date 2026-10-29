@@ -4,14 +4,15 @@ using Codrio.Rendering;
 
 namespace Codrio;
 
-/// <summary>Builds a block namespace containing class declarations.</summary>
+/// <summary>Builds a block or file-scoped namespace containing class declarations.</summary>
 /// <remarks>Builders are mutable and are not thread-safe.</remarks>
 public sealed class NamespaceBuilder
 {
     internal readonly string name;
+    internal readonly bool fileScoped;
     internal readonly List<Action<CodeWriter>> items = new();
 
-    internal NamespaceBuilder(string name)
+    internal NamespaceBuilder(string name, bool fileScoped)
     {
         if (name is null)
         {
@@ -19,6 +20,7 @@ public sealed class NamespaceBuilder
         }
 
         this.name = name;
+        this.fileScoped = fileScoped;
     }
 
     /// <summary>Adds an empty class declaration.</summary>
@@ -53,8 +55,20 @@ public sealed class NamespaceBuilder
 
     internal void Write(CodeWriter writer)
     {
-        writer.WriteLine("namespace " + name);
-        writer.OpenBlock();
+        if (fileScoped)
+        {
+            writer.WriteLine("namespace " + name + ";");
+            if (items.Count > 0)
+            {
+                writer.WriteBlankLine();
+            }
+        }
+        else
+        {
+            writer.WriteLine("namespace " + name);
+            writer.OpenBlock();
+        }
+
         for (var i = 0; i < items.Count; i++)
         {
             if (i > 0)
@@ -65,11 +79,14 @@ public sealed class NamespaceBuilder
             items[i](writer);
         }
 
-        writer.CloseBlock();
+        if (!fileScoped)
+        {
+            writer.CloseBlock();
+        }
     }
 
-    /// <summary>Renders the block namespace with one blank line between declarations.</summary>
-    /// <returns>The namespace source with Allman braces and LF line endings.</returns>
+    /// <summary>Renders the namespace in its selected form with one blank line between declarations.</summary>
+    /// <returns>The namespace source with LF line endings and Allman braces for block namespaces.</returns>
     public override string ToString()
     {
         var writer = new CodeWriter();
