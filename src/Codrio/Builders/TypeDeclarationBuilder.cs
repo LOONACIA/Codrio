@@ -215,6 +215,8 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    internal virtual string ParameterList() => "";
+
     internal override void Write(CodeWriter writer)
     {
         var declaration = accessibility is null ? "" : accessibility + " ";
@@ -248,6 +250,8 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         {
             declaration += "<" + string.Join(", ", typeParameters.ConvertAll(parameter => parameter.name)) + ">";
         }
+
+        declaration += ParameterList();
 
         if (baseTypes.Count > 0)
         {

@@ -1,6 +1,9 @@
 #nullable enable
 Codrio.CSharp
 Codrio.ClassBuilder
+Codrio.ClassOrStructBuilder<TSelf>
+Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(string! type, string! name) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> TSelf!
 Codrio.FileBuilder
 Codrio.FileBuilder.Add(Codrio.ClassBuilder! classBuilder) -> Codrio.FileBuilder!
 Codrio.FileBuilder.Add(Codrio.InterfaceBuilder! interfaceBuilder) -> Codrio.FileBuilder!
@@ -31,6 +34,13 @@ Codrio.NamespaceBuilder.Interface(string! name) -> Codrio.NamespaceBuilder!
 Codrio.NamespaceBuilder.Interface(string! name, System.Action<Codrio.InterfaceBuilder!>! configure) -> Codrio.NamespaceBuilder!
 Codrio.NamespaceBuilder.Struct(string! name) -> Codrio.NamespaceBuilder!
 Codrio.NamespaceBuilder.Struct(string! name, System.Action<Codrio.StructBuilder!>! configure) -> Codrio.NamespaceBuilder!
+Codrio.ParameterBuilder
+Codrio.ParameterBuilder.Default(string! expression) -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.In() -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.Out() -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.Params() -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.Ref() -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.This() -> Codrio.ParameterBuilder!
 Codrio.StructBuilder
 Codrio.TypeBuilder<TSelf>
 Codrio.TypeBuilder<TSelf>.Internal() -> TSelf!
@@ -62,6 +72,7 @@ Codrio.TypeParameterBuilder
 Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParameterBuilder!
 override Codrio.FileBuilder.ToString() -> string!
 override Codrio.NamespaceBuilder.ToString() -> string!
+override Codrio.ParameterBuilder.ToString() -> string!
 override Codrio.TypeBuilder<TSelf>.ToString() -> string!
 override Codrio.TypeParameterBuilder.ToString() -> string!
 static Codrio.CSharp.Class(string! name) -> Codrio.ClassBuilder!
