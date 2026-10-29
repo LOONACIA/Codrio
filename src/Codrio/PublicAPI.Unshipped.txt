@@ -29,6 +29,11 @@ Codrio.DelegateBuilder.Parameter(string! type, string! name, System.Action<Codri
 Codrio.DelegateBuilder.Returns(string! type) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.TypeParameter(string! name) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
+Codrio.DocBuilder
+Codrio.DocBuilder.Param(string! name, string! text) -> Codrio.DocBuilder!
+Codrio.DocBuilder.Returns(string! text) -> Codrio.DocBuilder!
+Codrio.DocBuilder.Summary(string! text) -> Codrio.DocBuilder!
+Codrio.DocBuilder.Xml(string! xml) -> Codrio.DocBuilder!
 Codrio.EnumBuilder
 Codrio.EnumBuilder.Member(string! name) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, string! value) -> Codrio.EnumBuilder!
@@ -150,6 +155,7 @@ Codrio.RecordBuilder
 Codrio.StructBuilder
 Codrio.TypeBuilder<TSelf>
 Codrio.TypeBuilder<TSelf>.Attribute(string! name, params string![]! arguments) -> TSelf!
+Codrio.TypeBuilder<TSelf>.Doc(System.Action<Codrio.DocBuilder!>! configure) -> TSelf!
 Codrio.TypeBuilder<TSelf>.Internal() -> TSelf!
 Codrio.TypeBuilder<TSelf>.Private() -> TSelf!
 Codrio.TypeBuilder<TSelf>.PrivateProtected() -> TSelf!
@@ -210,6 +216,7 @@ Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParamet
 override Codrio.AccessorBuilder.ToString() -> string!
 override Codrio.BodyBuilder.ToString() -> string!
 override Codrio.ConstructorBuilder.ToString() -> string!
+override Codrio.DocBuilder.ToString() -> string!
 override Codrio.EnumMemberBuilder.ToString() -> string!
 override Codrio.FileBuilder.ToString() -> string!
 override Codrio.MemberBuilder<TSelf>.ToString() -> string!

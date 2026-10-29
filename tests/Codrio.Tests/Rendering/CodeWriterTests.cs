@@ -5,6 +5,35 @@ namespace Codrio.Tests;
 
 public class CodeWriterTests
 {
+    [Theory]
+    [InlineData("first\n\nthird\n")]
+    [InlineData("first\r\n\r\nthird\r\n")]
+    public void WriteDocumentationComment_PrefixesEveryLineWithoutTrailingSpacesOnEmptyLines(string text)
+    {
+        var writer = new CodeWriter();
+
+        writer.WriteDocumentationComment(text);
+        writer.WriteDocumentationComment("");
+
+        OutputAssert.Equal("/// first\n///\n/// third\n///\n///\n", writer.ToString());
+    }
+
+    [Theory]
+    [InlineData("first\n\nthird\n")]
+    [InlineData("first\r\n\r\nthird\r\n")]
+    public void WriteDocumentationComment_IndentsEveryLineInsideBlocks(string text)
+    {
+        var writer = new CodeWriter();
+        writer.OpenBlock();
+
+        writer.WriteDocumentationComment(text);
+        writer.WriteLine("next");
+        writer.CloseBlock();
+        writer.WriteDocumentationComment("last");
+
+        OutputAssert.Equal("{\n    /// first\n    ///\n    /// third\n    ///\n    next\n}\n/// last\n", writer.ToString());
+    }
+
     [Fact]
     public void CloseBlock_WithSuffixRestoresOuterIndentation()
     {

@@ -6,12 +6,13 @@ namespace Codrio;
 
 /// <summary>Provides the name and accessibility of a type declaration.</summary>
 /// <typeparam name="TSelf">The concrete builder type returned by fluent methods.</typeparam>
-/// <remarks>Builders are mutable and are not thread-safe. Attribute lines precede the declaration in addition order.</remarks>
+/// <remarks>Builders are mutable and are not thread-safe. Documentation lines precede attribute lines, followed by the declaration. Attributes are written in addition order.</remarks>
 public abstract class TypeBuilder<TSelf> where TSelf : TypeBuilder<TSelf>
 {
     internal readonly string name;
     internal string? accessibility;
     internal readonly List<string> attributes = new();
+    internal DocBuilder? doc;
 
     internal TypeBuilder(string name)
     {
@@ -77,8 +78,26 @@ public abstract class TypeBuilder<TSelf> where TSelf : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Immediately configures documentation, replacing any previous documentation.</summary>
+    /// <param name="configure">The action to run once on a new documentation builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    public TSelf Doc(Action<DocBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new DocBuilder();
+        configure(builder);
+        doc = builder;
+        return (TSelf)this;
+    }
+
     internal void WritePreamble(CodeWriter writer)
     {
+        doc?.Write(writer);
         foreach (var attribute in attributes)
         {
             writer.WriteLine(attribute);
