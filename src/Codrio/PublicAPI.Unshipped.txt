@@ -23,9 +23,17 @@ Codrio.ConstructorBuilder.Body() -> Codrio.ConstructorBuilder!
 Codrio.ConstructorBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.ConstructorBuilder!
 Codrio.ConstructorBuilder.Parameter(string! type, string! name) -> Codrio.ConstructorBuilder!
 Codrio.ConstructorBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter(System.Type! type, string! name) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter<T>(string! name) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.ConstructorBuilder!
 Codrio.DelegateBuilder
 Codrio.DelegateBuilder.Parameter(string! type, string! name) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Parameter(System.Type! type, string! name) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Parameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Parameter<T>(string! name) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.Returns(string! type) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.Returns(System.Type! type) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.Returns<T>() -> Codrio.DelegateBuilder!
@@ -106,6 +114,10 @@ Codrio.MethodBuilder.Body() -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Parameter(string! type, string! name) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter(System.Type! type, string! name) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter<T>(string! name) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Partial() -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Returns(string! type) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Returns(System.Type! type) -> Codrio.MethodBuilder!

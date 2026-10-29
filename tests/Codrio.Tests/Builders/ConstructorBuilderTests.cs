@@ -224,12 +224,12 @@ public class ConstructorBuilderTests
         var configured = false;
 
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Constructor(null!));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "value"));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "value", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "value"));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "value", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter("int", "value", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter((string)null!, null!, null!));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Body(null!));
         Assert.False(configured);
         OutputAssert.Equal("()\n{\n    Keep();\n}\n", builder.ToString());
