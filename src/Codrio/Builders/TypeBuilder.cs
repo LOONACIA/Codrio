@@ -78,6 +78,24 @@ public abstract class TypeBuilder<TSelf> where TSelf : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds an attribute from a <see cref="Type"/> before the type declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="arguments">Raw argument strings joined with <c>, </c> inside parentheses. An empty array omits the parentheses.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="arguments"/>, or an element of <paramref name="arguments"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    /// <remarks>The Attribute suffix is preserved. Target prefixes such as <c>return:</c> require the string overload. Whether the type derives from System.Attribute is not validated.</remarks>
+    public TSelf Attribute(Type type, params string[] arguments) => Attribute(TypeName.Render(type, nameof(type)), arguments);
+
+    /// <summary>Adds an attribute from <typeparamref name="TAttribute"/> before the type declaration.</summary>
+    /// <typeparam name="TAttribute">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="arguments">Raw argument strings joined with <c>, </c> inside parentheses. An empty array omits the parentheses.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="arguments"/> or an element of <paramref name="arguments"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="TAttribute"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    /// <remarks>The Attribute suffix is preserved. Target prefixes such as <c>return:</c> require the string overload.</remarks>
+    public TSelf Attribute<TAttribute>(params string[] arguments) where TAttribute : System.Attribute => Attribute(typeof(TAttribute), arguments);
+
     /// <summary>Immediately configures documentation, replacing any previous documentation.</summary>
     /// <param name="configure">The action to run once on a new documentation builder.</param>
     /// <returns>This type builder.</returns>

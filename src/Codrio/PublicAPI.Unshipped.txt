@@ -108,6 +108,8 @@ Codrio.InterfaceBuilder
 Codrio.MemberBuilder<TSelf>
 Codrio.MemberBuilder<TSelf>.Abstract() -> TSelf!
 Codrio.MemberBuilder<TSelf>.Attribute(string! name, params string![]! arguments) -> TSelf!
+Codrio.MemberBuilder<TSelf>.Attribute(System.Type! type, params string![]! arguments) -> TSelf!
+Codrio.MemberBuilder<TSelf>.Attribute<TAttribute>(params string![]! arguments) -> TSelf!
 Codrio.MemberBuilder<TSelf>.Doc(System.Action<Codrio.DocBuilder!>! configure) -> TSelf!
 Codrio.MemberBuilder<TSelf>.Internal() -> TSelf!
 Codrio.MemberBuilder<TSelf>.New() -> TSelf!
@@ -191,6 +193,8 @@ Codrio.RecordBuilder
 Codrio.StructBuilder
 Codrio.TypeBuilder<TSelf>
 Codrio.TypeBuilder<TSelf>.Attribute(string! name, params string![]! arguments) -> TSelf!
+Codrio.TypeBuilder<TSelf>.Attribute(System.Type! type, params string![]! arguments) -> TSelf!
+Codrio.TypeBuilder<TSelf>.Attribute<TAttribute>(params string![]! arguments) -> TSelf!
 Codrio.TypeBuilder<TSelf>.Doc(System.Action<Codrio.DocBuilder!>! configure) -> TSelf!
 Codrio.TypeBuilder<TSelf>.Internal() -> TSelf!
 Codrio.TypeBuilder<TSelf>.Private() -> TSelf!

@@ -143,7 +143,7 @@ public class TypeAttributeTests
     {
         var builder = CSharp.Class("Widget").Attribute("Existing");
 
-        Assert.Throws<ArgumentNullException>("name", () => builder.Attribute(null!));
+        Assert.Throws<ArgumentNullException>("name", () => builder.Attribute((string)null!));
         Assert.Throws<ArgumentNullException>("arguments", () => builder.Attribute("X", (string[])null!));
         Assert.Throws<ArgumentNullException>("arguments", () => builder.Attribute("X", "a", null!));
         OutputAssert.Equal("[Existing]\nclass Widget\n{\n}\n", builder.ToString());
