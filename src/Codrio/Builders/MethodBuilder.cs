@@ -10,7 +10,10 @@ public sealed class MethodBuilder : MemberBuilder<MethodBuilder>
 {
     internal readonly string name;
     internal string returnType = "void";
+    internal bool isAsync;
     internal bool isPartial;
+    internal BodyBuilder? body;
+    internal string? expression;
     internal readonly List<ParameterBuilder> parameters = new();
     internal readonly List<TypeParameterBuilder> typeParameters = new();
 
@@ -96,6 +99,57 @@ public sealed class MethodBuilder : MemberBuilder<MethodBuilder>
         return this;
     }
 
+    /// <summary>Sets an empty block body, replacing any previous block or expression body.</summary>
+    /// <returns>This method builder.</returns>
+    public MethodBuilder Body()
+    {
+        body = new BodyBuilder();
+        expression = null;
+        return this;
+    }
+
+    /// <summary>Immediately configures a new body builder, replacing any previous block or expression body.</summary>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This method builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    public MethodBuilder Body(Action<BodyBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new BodyBuilder();
+        configure(builder);
+        body = builder;
+        expression = null;
+        return this;
+    }
+
+    /// <summary>Sets an expression body, replacing any previous block or expression body.</summary>
+    /// <param name="expression">The expression, written without validation.</param>
+    /// <returns>This method builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="expression"/> is null.</exception>
+    public MethodBuilder Arrow(string expression)
+    {
+        if (expression is null)
+        {
+            throw new ArgumentNullException(nameof(expression));
+        }
+
+        this.expression = expression;
+        body = null;
+        return this;
+    }
+
+    /// <summary>Includes the async modifier once, after common modifiers and before partial.</summary>
+    /// <returns>This method builder.</returns>
+    public MethodBuilder Async()
+    {
+        isAsync = true;
+        return this;
+    }
+
     /// <summary>Includes the partial modifier once, immediately before the return type.</summary>
     /// <returns>This method builder.</returns>
     public MethodBuilder Partial()
@@ -107,6 +161,11 @@ public sealed class MethodBuilder : MemberBuilder<MethodBuilder>
     internal override void Write(CodeWriter writer)
     {
         var declaration = RenderModifiers();
+        if (isAsync)
+        {
+            declaration += "async ";
+        }
+
         if (isPartial)
         {
             declaration += "partial ";
@@ -128,6 +187,16 @@ public sealed class MethodBuilder : MemberBuilder<MethodBuilder>
             }
         }
 
-        writer.WriteLine(declaration + ";");
+        if (body is not null)
+        {
+            writer.WriteLine(declaration);
+            writer.OpenBlock();
+            body.Write(writer);
+            writer.CloseBlock();
+        }
+        else
+        {
+            writer.WriteLine(declaration + (expression is null ? ";" : " => " + expression + ";"));
+        }
     }
 }

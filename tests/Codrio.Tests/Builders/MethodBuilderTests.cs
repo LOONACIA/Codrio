@@ -6,6 +6,220 @@ namespace Codrio.Tests;
 public class MethodBuilderTests
 {
     [Fact]
+    public void Body_RendersEmptyBlock()
+    {
+        OutputAssert.Equal("void Run()\n{\n}\n", CSharp.Method("Run").Body().ToString());
+        OutputAssert.Equal("void Run()\n{\n}\n", CSharp.Method("Run").Body(_ => { }).ToString());
+    }
+
+    [Fact]
+    public void Body_RendersConfiguredLinesAndBlocks()
+    {
+        var method = CSharp.Method("Clamp", m => m.Public().Returns("int").Parameter("int", "x")
+            .Body(b => b.Line("var y = x * 2;")
+                .Block("if (y > 10)", ib => ib.Line("return 10;"))
+                .Line("return y;")));
+
+        OutputAssert.Equal(
+            "public int Clamp(int x)\n{\n    var y = x * 2;\n    if (y > 10)\n    {\n        return 10;\n    }\n    return y;\n}\n",
+            method.ToString());
+    }
+
+    [Theory]
+    [InlineData("items.Count")]
+    [InlineData("unvalidated expression")]
+    [InlineData("")]
+    public void Arrow_RendersExpressionVerbatim(string expression)
+    {
+        var method = CSharp.Method("Count", m => m.Returns("int").Arrow(expression));
+
+        OutputAssert.Equal("int Count() => " + expression + ";\n", method.ToString());
+    }
+
+    [Fact]
+    public void BodyAndArrow_LastCallWins()
+    {
+        var method = CSharp.Method("Count").Returns("int");
+        OutputAssert.Equal("int Count();\n", method.ToString());
+        method.Body(b => b.Line("return 1;")).Arrow("2");
+        OutputAssert.Equal("int Count() => 2;\n", method.ToString());
+        method.Arrow("3");
+        OutputAssert.Equal("int Count() => 3;\n", method.ToString());
+        method.Body(b => b.Line("return 4;"));
+        OutputAssert.Equal("int Count()\n{\n    return 4;\n}\n", method.ToString());
+        method.Body(b => b.Line("return 5;"));
+        OutputAssert.Equal("int Count()\n{\n    return 5;\n}\n", method.ToString());
+        method.Body();
+        OutputAssert.Equal("int Count()\n{\n}\n", method.ToString());
+        method.Arrow("6").Body();
+        OutputAssert.Equal("int Count()\n{\n}\n", method.ToString());
+    }
+
+    [Fact]
+    public void Async_RendersOnceAfterCommonModifiersAndBeforePartial()
+    {
+        OutputAssert.Equal("async void Run();\n", CSharp.Method("Run").Async().Async().ToString());
+        var method = CSharp.Method("Run").Partial().Async().ReadOnly().Override().Sealed()
+            .Abstract().Virtual().New().Static().Public();
+        const string expected = "public static new virtual abstract sealed override readonly async partial void Run();\n";
+
+        OutputAssert.Equal(expected, method.ToString());
+        method.Async().Partial();
+        OutputAssert.Equal(expected, method.ToString());
+    }
+
+    [Fact]
+    public void NestedClass_IndentsMethodBodyAndBlocks()
+    {
+        var builder = CSharp.Class("Outer").Class("Inner", c => c.Method("Run", m => m
+            .Body(b => b.Block("if (ready)", ib => ib.Line("Start();")))));
+
+        OutputAssert.Equal(
+            "class Outer\n{\n    class Inner\n    {\n        void Run()\n        {\n            if (ready)\n            {\n                Start();\n            }\n        }\n    }\n}\n",
+            builder.ToString());
+    }
+
+    [Fact]
+    public void MultilineArrow_IndentsEachLineAtMethodIndentation()
+    {
+        var builder = CSharp.Class("Counter").Method("Count", m => m.Returns("int").Arrow("first\r\n+ second\n+ third"));
+
+        OutputAssert.Equal("class Counter\n{\n    int Count() => first\n    + second\n    + third;\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void GenericMethod_RendersBodyAfterWhereClauses()
+    {
+        var method = CSharp.Method("Create").Returns("T").TypeParameter("T", t => t.Constraint("new()"))
+            .Body(b => b.Line("return new T();"));
+
+        OutputAssert.Equal("T Create<T>() where T : new()\n{\n    return new T();\n}\n", method.ToString());
+        method.Arrow("new T()");
+        OutputAssert.Equal("T Create<T>() where T : new() => new T();\n", method.ToString());
+    }
+
+    [Fact]
+    public void Body_InvokesConfigureImmediatelyOnceAndRetainsFreshBuilder()
+    {
+        BodyBuilder? body = null;
+        var calls = 0;
+        var method = CSharp.Method("Run");
+        method.Body(b =>
+        {
+            body = b;
+            calls++;
+            OutputAssert.Equal("void Run();\n", method.ToString());
+            b.Line("First();");
+        });
+
+        Assert.Equal(1, calls);
+        Assert.NotNull(body);
+        body.Line("Second();");
+        const string expected = "void Run()\n{\n    First();\n    Second();\n}\n";
+        OutputAssert.Equal(expected, method.ToString());
+        OutputAssert.Equal(expected, method.ToString());
+        Assert.Equal(1, calls);
+        method.Body(b =>
+        {
+            Assert.NotSame(body, b);
+            OutputAssert.Equal("", b.ToString());
+        });
+        body.Line("Detached();");
+        OutputAssert.Equal("void Run()\n{\n}\n", method.ToString());
+    }
+
+    [Fact]
+    public void NullBodyArguments_ThrowWithoutReplacingBody()
+    {
+        var method = CSharp.Method("Count").Returns("int").Arrow("1");
+
+        Assert.Throws<ArgumentNullException>("configure", () => method.Body(null!));
+        Assert.Throws<ArgumentNullException>("expression", () => method.Arrow(null!));
+        OutputAssert.Equal("int Count() => 1;\n", method.ToString());
+    }
+
+    [Fact]
+    public void BodyMethods_ReturnSameMethodBuilder()
+    {
+        var method = CSharp.Method("Run");
+
+        Assert.Same(method, method.Body());
+        Assert.Same(method, method.Body(b => b.Line("Work();")));
+        Assert.Same(method, method.Arrow("Work()"));
+        Assert.Same(method, method.Async());
+    }
+
+    [Fact]
+    public void CompleteFile_RendersControlFlowBlocksAndCompiles()
+    {
+        var file = CSharp.File().Class("Calculator", c => c.Method("Sum", m => m.Public().Returns("int")
+            .Parameter("int", "count").Body(b => b
+                .Block("if (count < 0)", ib => ib.Line("return 0;"))
+                .Block("else", eb => eb.Line("count += 1;"))
+                .Line("var sum = 0;")
+                .Block("try", tb => tb.Block("for (var i = 0; i < count; i++)", fb => fb.Line("sum += i;")))
+                .Block("catch (System.Exception)", cb => cb.Line("return -1;"))
+                .Line("return sum;"))));
+        const string expected = "class Calculator\n{\n    public int Sum(int count)\n    {\n" +
+            "        if (count < 0)\n        {\n            return 0;\n        }\n" +
+            "        else\n        {\n            count += 1;\n        }\n        var sum = 0;\n" +
+            "        try\n        {\n            for (var i = 0; i < count; i++)\n            {\n                sum += i;\n            }\n        }\n" +
+            "        catch (System.Exception)\n        {\n            return -1;\n        }\n        return sum;\n    }\n}\n";
+
+        OutputAssert.Equal(expected, file.ToString());
+        CompilationAssert.NoErrors(file.ToString());
+    }
+
+    [Fact]
+    public void CompleteFile_RendersAsyncGenericAndOverrideMethodsAndCompiles()
+    {
+        var file = CSharp.File().Class("Runner", c => c
+            .Method("Count", m => m.Public().Returns("int").Arrow("42"))
+            .Method("RunAsync", m => m.Public().Async().Returns("System.Threading.Tasks.Task")
+                .Body(b => b.Line("await System.Threading.Tasks.Task.Yield();")))
+            .Method("Create", m => m.Public().Returns("T").TypeParameter("T", t => t.Constraint("new()"))
+                .Body(b => b.Line("return new T();")))
+            .Method("ToString", m => m.Public().Override().Returns("string").Arrow("\"Runner\"")));
+        const string expected = "class Runner\n{\n    public int Count() => 42;\n\n" +
+            "    public async System.Threading.Tasks.Task RunAsync()\n    {\n        await System.Threading.Tasks.Task.Yield();\n    }\n\n" +
+            "    public T Create<T>() where T : new()\n    {\n        return new T();\n    }\n\n" +
+            "    public override string ToString() => \"Runner\";\n}\n";
+
+        OutputAssert.Equal(expected, file.ToString());
+        CompilationAssert.NoErrors(file.ToString());
+    }
+
+    [Fact]
+    public void CompleteFile_RendersNamespaceLevelExtensionMethodAndCompiles()
+    {
+        var file = CSharp.File().Namespace("Example", n => n.Class("Extensions", c => c.Public().Static()
+            .Add(CSharp.Method("Twice").Public().Static().Returns("int")
+                .Parameter("int", "value", p => p.This()).Arrow("value * 2"))));
+
+        OutputAssert.Equal(
+            "namespace Example\n{\n    public static class Extensions\n    {\n        public static int Twice(this int value) => value * 2;\n    }\n}\n",
+            file.ToString());
+        CompilationAssert.NoErrors(file.ToString());
+    }
+
+    [Fact]
+    public void CompleteFile_RendersStructInterfaceAndPartialImplementationsAndCompiles()
+    {
+        var file = CSharp.File()
+            .Struct("Value", s => s.Method("Zero", m => m.Public().ReadOnly().Returns("int").Arrow("0")))
+            .Interface("IRunner", i => i.Method("Run", m => m.Body()))
+            .Class("Observer", c => c.Partial()
+                .Method("OnChanged", m => m.Partial())
+                .Method("OnChanged", m => m.Partial().Body()));
+        const string expected = "struct Value\n{\n    public readonly int Zero() => 0;\n}\n\n" +
+            "interface IRunner\n{\n    void Run()\n    {\n    }\n}\n\n" +
+            "partial class Observer\n{\n    partial void OnChanged();\n\n    partial void OnChanged()\n    {\n    }\n}\n";
+
+        OutputAssert.Equal(expected, file.ToString());
+        CompilationAssert.NoErrors(file.ToString());
+    }
+
+    [Fact]
     public void Parameters_RenderInAddedOrder()
     {
         var builder = CSharp.Method("Save").Parameter("string", "path");

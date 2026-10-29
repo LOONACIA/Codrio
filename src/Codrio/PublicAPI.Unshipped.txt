@@ -1,4 +1,8 @@
 #nullable enable
+Codrio.BodyBuilder
+Codrio.BodyBuilder.Block(string! header) -> Codrio.BodyBuilder!
+Codrio.BodyBuilder.Block(string! header, System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.BodyBuilder!
+Codrio.BodyBuilder.Line(string! code) -> Codrio.BodyBuilder!
 Codrio.CSharp
 Codrio.ClassBuilder
 Codrio.ClassOrStructBuilder<TSelf>
@@ -51,6 +55,10 @@ Codrio.MemberBuilder<TSelf>.Sealed() -> TSelf!
 Codrio.MemberBuilder<TSelf>.Static() -> TSelf!
 Codrio.MemberBuilder<TSelf>.Virtual() -> TSelf!
 Codrio.MethodBuilder
+Codrio.MethodBuilder.Arrow(string! expression) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Async() -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Body() -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Parameter(string! type, string! name) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Partial() -> Codrio.MethodBuilder!
@@ -123,6 +131,7 @@ Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> TSelf!
 Codrio.TypeParameterBuilder
 Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParameterBuilder!
+override Codrio.BodyBuilder.ToString() -> string!
 override Codrio.FileBuilder.ToString() -> string!
 override Codrio.MemberBuilder<TSelf>.ToString() -> string!
 override Codrio.NamespaceBuilder.ToString() -> string!
