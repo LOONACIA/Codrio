@@ -1,0 +1,665 @@
+id: type-overloads
+goal: >
+  PRD 핵심 기능 5의 System.Type·제네릭 오버로드를 구현해 핵심 기능 1~7을 마무리한다. src/Codrio/Rendering/TypeName.cs에 System.Type을
+  C# 표기(`global::` 완전 한정 이름, 키워드 별칭, 제네릭, 중첩 타입과 바깥 타입의 타입 인자 분배, 다차원·가변 배열, 포인터)로 바꾸는 internal
+  변환기를 두고, C# 타입 표기로 쓸 수 없는 Type(열린 제네릭, by-ref, 컴파일러 생성 이름 등)은 오버로드를 호출하는 시점에 ArgumentException을
+  던진다. 타입 참조를 문자열로 받는 모든 공개 메서드(메서드·델리게이트 반환 형식, 메서드·생성자·델리게이트·인덱서·연산자 매개변수와 주 생성자
+  매개변수, 필드·속성·이벤트·인덱서 형식, 연산자·변환 연산자 형식, 기반 타입, enum 기반 형식, 타입 제약, 타입·멤버·매개변수·enum 멤버의
+  attribute 이름)에 `Type` 오버로드와 제네릭 오버로드를 람다 짝까지 추가한다. Type 오버로드는 변환한 문자열을 기존 문자열 오버로드에 넘기고,
+  제네릭 오버로드는 `typeof(T)`로 Type 오버로드를 부르며, 기존 문자열 오버로드의 출력은 바꾸지 않는다. 완료는 변환 규칙별·오버로드별 기대
+  문자열 테스트와 오버로드를 쓴 완결 파일의 Roslyn 오류 진단 0개 테스트(테스트 어셈블리 타입은 같은 정의를 입력 소스에 넣는다)가 있고,
+  `dotnet build Codrio.slnx -c Release`와 `dotnet test Codrio.slnx`가 net10.0·net48에서 통과하며, 새 공개 API가 영어 XML 문서와
+  PublicAPI.Unshipped.txt 항목을 갖는 상태다. using 자동 수집, 문자열 타입의 파싱·정규화, 출력 형태·포맷 규칙 변경, `Nullable<T>`의 `T?`
+  축약과 튜플 문법, `nint`·`nuint` 별칭, attribute 이름의 `Attribute` 접미사 제거는 하지 않는다.
+approved: true
+branch_prefix: feat
+max_attempts: 3
+ac_timeout_sec: 900
+steps:
+  - id: s1-type-name-returns
+    title: add System.Type name conversion and return type overloads
+    type: feat
+    scope: builders
+    timeout_sec: 3000
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 5, 공통 완료 기준, "범위 밖"), docs/ARCHITECTURE.md("디렉토리 구조"의 Rendering/, "레이어 규칙",
+      "횡단 관심사"), docs/ADR.md(ADR-001·004·005), src/Codrio/Rendering/Identifier.cs(ValidateAndEscape와 예외 형태),
+      src/Codrio/Rendering/AttributeSyntax.cs(internal static 헬퍼의 형태), src/Codrio/Builders/MethodBuilder.cs(Returns),
+      src/Codrio/Builders/DelegateBuilder.cs(Returns), src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Rendering/IdentifierTests.cs,
+      tests/Codrio.Tests/TestSupport/OutputAssert.cs, tests/Codrio.Tests/TestSupport/CompilationAssert.cs.
+
+      System.Type을 C# 타입 표기로 바꾸는 internal 변환기를 만들고, 첫 공개 오버로드로 메서드·델리게이트 반환 형식에 붙인다. 이 계획의 다른
+      스텝은 모두 이 변환기와 이 스텝이 정한 오버로드 모양·XML 문서 문구·테스트 픽스처를 그대로 쓴다.
+
+      변환기(새 src/Codrio/Rendering/TypeName.cs, `namespace Codrio.Rendering;`): `internal static class TypeName`,
+      `internal static string Render(Type type, string paramName)`. 다음 순서로 판단한다.
+      1. type이 null이면 ArgumentNullException(paramName).
+      2. `type.IsByRef`이거나 `type.ContainsGenericParameters`(열린 제네릭 정의, 일부만 닫힌 제네릭, 제네릭 매개변수 자체, 그런 타입의 배열)이면
+         ArgumentException(paramName). 이유: C# 타입 표기로 쓸 수 없고, 렌더링 단계에서는 예외를 던지지 않으므로 받는 시점에 막는다
+         (ARCHITECTURE 횡단 관심사).
+      3. 키워드 별칭: Type이 정확히 다음 16개 중 하나면 키워드를 쓴다: bool, byte, sbyte, char, decimal, double, float, int, uint, long, ulong,
+         short, ushort, object, string, void. IntPtr·UIntPtr은 `nint`·`nuint`로 바꾸지 말고 아래 6번 규칙(`global::System.IntPtr`)을 따른다.
+         이유: nint는 C# 9 이상이고 C# 11 전에는 IntPtr과 완전히 같은 타입이 아니다. 출력은 언어 버전과 무관해야 한다(ADR-005).
+      4. 배열: 가장 바깥 배열부터 안쪽으로 내려가며 차원 지정자(`[]`, `[,]`, `[,,]` …)를 모으고, 배열이 아닌 요소 타입을 변환한 뒤 모은 순서대로
+         붙인다. 예: `typeof(int[][,])` → `int[][,]`, `typeof(int[,][])` → `int[,][]`, `typeof(string[,,])` → `string[,,]`. 차원이 1인데 SZ 배열이
+         아닌 것(`typeof(int).MakeArrayType(1)`, 즉 `t != t.GetElementType().MakeArrayType()`)은 C# 표기가 없으므로 ArgumentException(paramName).
+      5. 포인터: `type.IsPointer`이면 요소 타입을 변환하고 `*`를 붙인다(`int*`). 이유: C#으로 쓸 수 있는 타입 표기다.
+      6. 그 밖의 이름 있는 타입: `global::` + 네임스페이스 + 가장 바깥 선언 타입부터 이 타입까지의 중첩 경로를 `.`로 잇는다(`+`가 아니다).
+         네임스페이스는 가장 바깥 선언 타입의 `Namespace`이고 null이나 빈 문자열이면 생략한다(`global::CodrioGlobalFixture`). 네임스페이스의
+         `.` 구분 조각과 각 중첩 수준의 이름(`` `n `` 아리티 접미사를 뗀 것)은 `Identifier.ValidateAndEscape(조각, paramName)`로 검증·이스케이프한다.
+         이유: 키워드 이름에는 `@`가 붙어야 하고(`global::Codrio.Tests.Fixtures.@class`), 익명 타입·컴파일러 생성 타입처럼 이름이 식별자가 아닌
+         타입은 C# 표기가 없으므로 ArgumentException이 나야 한다. 타입 인자: `type.GetGenericArguments()`(닫힌 중첩 타입이면 바깥 타입 몫까지
+         포함한 전체 목록)를 바깥 수준부터 각 수준 이름의 `` `n `` 개수만큼 차례로 나눠, 그 수준 이름 뒤에 `<인자들을 ", "로 이은 것>`을 붙인다.
+         각 인자는 같은 paramName으로 재귀 변환한다.
+         예: `Dictionary<string, int>` → `global::System.Collections.Generic.Dictionary<string, int>`,
+         `Environment.SpecialFolder` → `global::System.Environment.SpecialFolder`,
+         `Dictionary<string, int>.KeyCollection` → `global::System.Collections.Generic.Dictionary<string, int>.KeyCollection`,
+         픽스처 `Outer<int>.Inner<string>` → `global::Codrio.Tests.Fixtures.Outer<int>.Inner<string>`, `Outer<int>.Leaf` →
+         `global::Codrio.Tests.Fixtures.Outer<int>.Leaf`, `int?` → `global::System.Nullable<int>`.
+      `Nullable<T>`를 `T?`로, `ValueTuple`을 튜플 문법으로 바꾸는 특수 처리를 넣지 마라. 이유: 작업이 정한 규칙(완전 한정 이름, 키워드 별칭,
+      제네릭, 중첩, 배열)만으로 올바른 C# 표기가 되고, 특수 표기는 출력 규칙을 늘린다.
+
+      공개 API(이 계획의 오버로드 모양):
+      - MethodBuilder: `public MethodBuilder Returns(Type type)`는 `Returns(TypeName.Render(type, nameof(type)))`를,
+        `public MethodBuilder Returns<T>()`는 `Returns(typeof(T))`를 반환한다.
+      - DelegateBuilder: 같은 모양의 `Returns(Type type)`, `Returns<T>()`.
+      - 규칙: Type 오버로드는 호출 시점에 변환한 문자열을 같은 클래스의 기존 문자열 오버로드에 넘기고, 제네릭 오버로드는 같은 클래스의 Type
+        오버로드에 `typeof(T)`를 넘긴다. 그래서 잘못된 Type이면 상태가 바뀌기 전에 예외가 나고(이전 반환 형식이 남는다), 제네릭 오버로드의 예외
+        ParamName도 Type 오버로드의 매개변수 이름(`type`)이다. 기존 문자열 오버로드는 고치지 마라. 이유: 기존 출력과 테스트가 그대로여야 한다.
+        제네릭 매개변수에 제약을 두지 마라. 이유: 판단은 컴파일러에 맡긴다(ADR 원칙).
+      - 영어 XML 문서. 뒤 스텝이 이 문구를 그대로 따른다.
+        Type 오버로드: summary `Sets the return type from a <see cref="Type"/>, replacing any previous return type.`, param type
+        `The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for
+        types with a keyword alias.`, returns, `<exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>`,
+        `<exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or
+        compiler-generated type.</exception>`.
+        제네릭 오버로드: summary `Sets the return type from <typeparamref name="T"/>, replacing any previous return type.`, typeparam T(위 param과
+        같은 변환 설명), returns, `<exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a
+        compiler-generated type.</exception>`.
+      - PublicAPI: RS0016 메시지 문자열 그대로 src/Codrio/PublicAPI.Unshipped.txt에 추가한다(예: `Codrio.MethodBuilder.Returns(System.Type! type)
+        -> Codrio.MethodBuilder!`, `Codrio.MethodBuilder.Returns<T>() -> Codrio.MethodBuilder!`). PublicAPI.Shipped.txt는 건드리지 마라. 이유:
+        0.1.0은 아직 배포 전이다.
+
+      테스트 픽스처(새 tests/Codrio.Tests/TestSupport/TypeFixtures.cs): 파일 범위 namespace를 쓰지 말고 블록 namespace로 다음을 정의한다.
+      전역 namespace의 `public class CodrioGlobalFixture`, `namespace Codrio.Tests.Fixtures` 안의 `public class Outer<T>`(그 안에
+      `public class Inner<U>`, `public class Leaf`)와 `public class @class`, `namespace Codrio.Tests.Fixtures.@event` 안의 `public class Handler`.
+      본문은 모두 비어 있다. 그리고 `namespace Codrio.Tests` 안에 `internal static class TypeFixtures`와, 위 픽스처 정의와 글자 그대로 같은 C#
+      소스를 담은 `internal const string Source`(raw string literal)를 둔다. 이유: 컴파일 검증 입력은 참조하는 타입이 모두 해석돼야 하는데(PRD 공통
+      완료 기준) CompilationAssert는 Net80 참조 어셈블리만 쓰므로, 테스트 어셈블리 타입은 같은 정의를 입력 소스에 넣는다. `@class` 선언에서
+      CS8981 경고(경고는 오류로 처리된다)가 나면 그 선언만 `#pragma warning disable CS8981`/`restore`로 감싼다.
+      이 계획의 컴파일 검증 입력은 `생성한 파일 + "\n" + TypeFixtures.Source` 순서로 만든다. 이유: 생성 파일의 using 지시문이 다른 선언보다 앞에
+      와야 한다(CS1529). 같은 이유로 픽스처를 붙이는 입력에는 파일 범위 namespace를 쓰지 않는다(블록 namespace와 한 파일에 섞을 수 없다).
+
+      테스트:
+      - 새 tests/Codrio.Tests/Rendering/TypeNameTests.cs: `TypeName.Render(type, "type")`를 직접 불러 `OutputAssert.Equal`로 위 규칙과 예를 모두
+        확인한다: 16개 키워드, `IntPtr`·`DateTime`·`System.Text.StringBuilder`의 `global::` 이름, 중첩된 제네릭 인자(`List<List<int>>`,
+        `Dictionary<string, int[]>`), `Nullable<int>`, `ValueTuple<int, string>`, 중첩 타입 4종(`Environment.SpecialFolder`,
+        `Dictionary<string, int>.KeyCollection`, `Outer<int>.Inner<string>`, `Outer<int>.Leaf`), 배열(`int[]`, `string[,,]`, `int[][,]`,
+        `int[,][]`, `List<int>[]`, `Outer<int>.Inner<string>[]`), 포인터(`typeof(int).MakePointerType()` → `int*`,
+        `typeof(int).MakePointerType().MakeArrayType()` → `int*[]`), 키워드 타입 이름 `@class`, 키워드 네임스페이스 조각
+        `global::Codrio.Tests.Fixtures.@event.Handler`, 전역 namespace `global::CodrioGlobalFixture`. 예외는 ParamName이 넘긴 paramName과 같은지
+        확인하고(다른 값 `"returnType"`으로도 한 번 확인한다): null(ArgumentNullException), `typeof(List<>)`, `typeof(List<>).GetGenericArguments()[0]`,
+        일부만 닫힌 `typeof(Dictionary<,>).MakeGenericType(typeof(string), typeof(Dictionary<,>).GetGenericArguments()[1])`,
+        `typeof(List<>).MakeArrayType()`, `typeof(int).MakeByRefType()`, `typeof(int).MakeArrayType(1)`, 익명 타입 `new { A = 1 }.GetType()`
+        (모두 ArgumentException). 포인터는 `typeof(int*)` 대신 `MakePointerType()`로 만든다. 이유: unsafe 문맥이 필요 없다.
+      - 새 tests/Codrio.Tests/Builders/ReturnTypeOverloadTests.cs, `OutputAssert.Equal`로: MethodBuilder와 DelegateBuilder 각각 `Returns<int>()` →
+        `int Run();\n`·`delegate int Factory();\n`, `Returns(typeof(void))` → `void`, `Returns<Dictionary<string, int>>()`와
+        `Returns(typeof(Dictionary<string, int>))`와 문자열 `Returns("global::System.Collections.Generic.Dictionary<string, int>")`의 출력이 같음,
+        문자열·Type·제네릭 오버로드를 섞어 부르면 마지막 호출이 이김, 잘못된 Type(`typeof(List<>)`) → ArgumentException(ParamName `type`)이고
+        이전 반환 형식이 남음, `Returns((Type)null!)` → ArgumentNullException(ParamName `type`), 체이닝 반환값(`Assert.Same`).
+        `CompilationAssert.NoErrors`: 블록 namespace 안에 Type·제네릭 Returns만으로 반환 형식을 정한 메서드들(키워드, void, BCL 제네릭, Nullable,
+        중첩 4종, 배열, `@class`, `@event.Handler`, 전역 픽스처)을 가진 interface와 반환 형식이 제네릭 배열인 delegate를 담은 완결 파일 +
+        `TypeFixtures.Source`. 포인터는 컴파일 검증에 넣지 마라. 이유: CompilationAssert는 unsafe 코드를 허용하지 않는다.
+      - 기존 테스트 수정: 새 `Returns(Type)` 때문에 `Returns(null!)`가 CS0121(모호한 호출)이 된다. tests/Codrio.Tests/Builders/MethodBuilderTests.cs
+        (현재 629행 부근)와 tests/Codrio.Tests/Builders/DelegateBuilderTests.cs(현재 370행 부근)의 그 호출만 `Returns((string)null!)`로 바꾼다.
+        단언과 다른 테스트는 바꾸지 마라. 이유: 기존 문자열 오버로드의 동작은 그대로여야 한다.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      그 대상에는 IsExternalInit가 없다. src/Codrio에서도 record·init을 쓰거나 Polyfills를 만들지 마라.
+      하지 마라: 매개변수·필드·속성·기반 타입·attribute 등 다른 메서드의 오버로드(이유: 스텝 s2~s8), using 자동 수집이나 문자열 타입의 파싱·정규화
+      (이유: ADR-004, PRD 범위 밖), src/Codrio의 Microsoft.CodeAnalysis 참조(이유: ADR-001, ARCHITECTURE 레이어 규칙), CSharp.cs 변경(이유: 반환
+      형식은 기존 빌더의 기능이라 새 진입점이 필요 없다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Rendering/TypeName.cs
+      - src/Codrio/Builders/MethodBuilder.cs
+      - src/Codrio/Builders/DelegateBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/TestSupport/TypeFixtures.cs
+      - tests/Codrio.Tests/Rendering/TypeNameTests.cs
+      - tests/Codrio.Tests/Builders/ReturnTypeOverloadTests.cs
+      - tests/Codrio.Tests/Builders/MethodBuilderTests.cs
+      - tests/Codrio.Tests/Builders/DelegateBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s2-method-parameter-overloads
+    title: add System.Type and generic overloads to method, constructor and delegate parameters
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·5, 공통 완료 기준), docs/ADR.md(ADR-004·006), src/Codrio/Rendering/TypeName.cs,
+      src/Codrio/Builders/MethodBuilder.cs(스텝 s1의 `Returns(Type)`·`Returns<T>()`와 그 XML 문서 문구, 기존 Parameter),
+      src/Codrio/Builders/ConstructorBuilder.cs, src/Codrio/Builders/DelegateBuilder.cs, src/Codrio/Builders/ParameterBuilder.cs,
+      src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/ReturnTypeOverloadTests.cs(오버로드 테스트 구성 예),
+      tests/Codrio.Tests/TestSupport/TypeFixtures.cs, tests/Codrio.Tests/TestSupport/CompilationAssert.cs.
+
+      메서드·생성자·델리게이트 매개변수에 System.Type·제네릭 오버로드를 붙인다.
+
+      이 계획의 오버로드 규칙(스텝 s1의 Returns와 같다): Type 오버로드는 `TypeName.Render(type, nameof(type))`로 호출 시점에 바꾼 문자열을 같은
+      클래스의 기존 문자열 오버로드에 넘기고, 제네릭 오버로드는 같은 클래스의 Type 오버로드에 `typeof(T)`를 넘긴다. 람다 오버로드는 짝으로 두고
+      선택적 매개변수는 쓰지 않는다. 기존 문자열 오버로드는 고치지 마라. 이유: 기존 출력과 테스트가 그대로여야 한다. 제네릭 매개변수에 제약을
+      두지 마라. 이유: 판단은 컴파일러에 맡긴다(ADR 원칙).
+
+      공개 API(MethodBuilder, ConstructorBuilder, DelegateBuilder 각각. X는 그 빌더 타입):
+      - `public X Parameter(Type type, string name)` → `Parameter(TypeName.Render(type, nameof(type)), name)`
+      - `public X Parameter(Type type, string name, Action<ParameterBuilder> configure)` → `Parameter(TypeName.Render(type, nameof(type)), name, configure)`
+      - `public X Parameter<T>(string name)` → `Parameter(typeof(T), name)`
+      - `public X Parameter<T>(string name, Action<ParameterBuilder> configure)` → `Parameter(typeof(T), name, configure)`
+      type을 먼저 변환하므로 잘못된 Type이면 name 검사, 람다 실행, 목록 추가 전에 예외가 난다. by-ref Type(`typeof(int).MakeByRefType()`)은
+      ArgumentException이다. ref·out·in 매개변수는 by-ref가 아닌 타입을 넘기고 ParameterBuilder의 `Ref()`·`Out()`·`In()`을 쓴다. 이 점을 Type·
+      제네릭 오버로드의 XML 문서 remarks에 적는다.
+
+      출력 예:
+      - `CSharp.Method("Log", m => m.Parameter<string>("message").Parameter(typeof(int[]), "codes", p => p.Params())).ToString()` →
+        `void Log(string message, params int[] codes);\n`
+      - `CSharp.Class("Point", c => c.Constructor(k => k.Public().Parameter<int>("x").Parameter(typeof(Dictionary<string, int>), "map"))).ToString()` →
+        `class Point\n{\n    public Point(int x, global::System.Collections.Generic.Dictionary<string, int> map)\n    {\n    }\n}\n`
+      - `CSharp.Delegate("Handler", d => d.Parameter<object>("sender").Parameter(typeof(EventArgs), "e")).ToString()` →
+        `delegate void Handler(object sender, global::System.EventArgs e);\n`
+
+      문서와 PublicAPI: 새 메서드마다 영어 XML 문서(summary, typeparam 또는 param, returns, exception, remarks). type·T 설명과 ArgumentException
+      문구는 MethodBuilder의 `Returns(Type)`·`Returns<T>()`와 같게 쓰고, name·configure 설명은 기존 문자열 오버로드 문구를 따른다. ArgumentException
+      설명에는 name이 올바른 C# 식별자가 아닌 경우도 넣는다. RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목을 추가한다(예:
+      `Codrio.MethodBuilder.Parameter(System.Type! type, string! name) -> Codrio.MethodBuilder!`,
+      `Codrio.MethodBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!`).
+      PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/ParameterTypeOverloadTests.cs, `OutputAssert.Equal`로: 세 빌더 각각 네 오버로드의 출력, 같은 타입의 문자열·
+        Type·제네릭 오버로드 출력이 변환한 이름으로 같음, 문자열 오버로드와 섞은 매개변수 순서, 람다 즉시 한 번 실행, Type 오버로드와
+        ParameterBuilder 수식어(`Ref`, `Out`, `In`, `Params`, `This`, `Default`, `Attribute`) 조합, 키워드 이름 `class` → `@class`, 픽스처 타입
+        (`Outer<int>.Inner<string>`), 잘못된 Type(`typeof(List<>)`, by-ref) → ArgumentException(ParamName `type`)이고 람다 미실행·매개변수
+        미추가(출력 불변), 올바른 Type과 잘못된 이름(`"1x"`) → ArgumentException(ParamName `name`), null 인자(`(Type)null!` → `type`, name →
+        `name`, configure → `configure`, 제네릭 오버로드의 name·configure), 체이닝 반환값(`Assert.Same`, 세 빌더 × 네 오버로드).
+      - `CompilationAssert.NoErrors`(입력은 `생성한 파일 + "\n" + TypeFixtures.Source`. 이유: 생성 파일의 using이 다른 선언보다 앞에 와야 한다,
+        CS1529): 블록 namespace 안에 Type·제네릭 매개변수로 만든 `this` 확장 메서드를 가진 static class, `out int`(본문에서 대입)·`ref`·`in`·
+        `params int[]`·BCL 제네릭·픽스처 타입 매개변수를 가진 메서드와 생성자를 가진 class, Type·제네릭 매개변수를 가진 delegate를 담은 완결 파일.
+        주의: out 매개변수는 반환 전에 대입해야 한다(CS0177). 확장 메서드는 중첩되지 않은 제네릭 아닌 static class에 있어야 한다(CS1109).
+        픽스처를 붙이는 입력에는 파일 범위 namespace를 쓰지 마라(블록 namespace와 섞을 수 없다).
+      - 기존 테스트 수정: 새 Type 오버로드 때문에 첫 인자가 `null!`인 Parameter 호출이 CS0121(모호한 호출)이 된다.
+        tests/Codrio.Tests/Builders/MethodBuilderTests.cs(현재 355·356·360행 부근), ConstructorBuilderTests.cs(227·228·232행 부근),
+        DelegateBuilderTests.cs(371·372·376행 부근)의 그 호출만 첫 인자를 `(string)null!`로 바꾼다. 단언과 다른 테스트는 바꾸지 마라. 이유: 기존
+        문자열 오버로드의 동작은 그대로여야 한다.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: IndexerBuilder·OperatorBuilder 매개변수와 PrimaryParameter(이유: 스텝 s3), ParameterBuilder.Attribute 오버로드(이유: 스텝 s8),
+      ParameterBuilder 변경(이유: 각 빌더의 문자열 오버로드가 이미 ParameterBuilder를 만들고, Type 오버로드는 그 오버로드에 위임한다),
+      TypeName 규칙 변경(이유: 스텝 s1에서 고정했다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/MethodBuilder.cs
+      - src/Codrio/Builders/ConstructorBuilder.cs
+      - src/Codrio/Builders/DelegateBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/ParameterTypeOverloadTests.cs
+      - tests/Codrio.Tests/Builders/MethodBuilderTests.cs
+      - tests/Codrio.Tests/Builders/ConstructorBuilderTests.cs
+      - tests/Codrio.Tests/Builders/DelegateBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s3-indexer-operator-primary-parameter-overloads
+    title: add System.Type and generic overloads to indexer, operator and primary constructor parameters
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·3·5), docs/ADR.md(ADR-003·004·006), src/Codrio/Rendering/TypeName.cs,
+      src/Codrio/Builders/MethodBuilder.cs(스텝 s2의 Type·제네릭 Parameter 오버로드와 XML 문서 문구), src/Codrio/Builders/IndexerBuilder.cs,
+      src/Codrio/Builders/OperatorBuilder.cs, src/Codrio/Builders/ClassOrStructBuilder.cs(PrimaryParameter), src/Codrio/Builders/RecordBuilder.cs,
+      src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/ParameterTypeOverloadTests.cs, tests/Codrio.Tests/TestSupport/TypeFixtures.cs.
+
+      인덱서·연산자 매개변수와 class·struct·record·record struct의 주 생성자 매개변수에 System.Type·제네릭 오버로드를 붙인다. 모양은 스텝 s2의
+      MethodBuilder.Parameter 오버로드와 같다.
+
+      이 계획의 오버로드 규칙: Type 오버로드는 `TypeName.Render(type, nameof(type))`로 호출 시점에 바꾼 문자열을 같은 클래스의 기존 문자열
+      오버로드에 넘기고, 제네릭 오버로드는 같은 클래스의 Type 오버로드에 `typeof(T)`를 넘긴다. 람다 오버로드는 짝으로 두고 선택적 매개변수는 쓰지
+      않는다. 기존 문자열 오버로드는 고치지 마라. 이유: 기존 출력과 테스트가 그대로여야 한다. 제네릭 매개변수에 제약을 두지 마라.
+
+      공개 API:
+      - IndexerBuilder, OperatorBuilder 각각(X는 그 빌더 타입): `X Parameter(Type type, string name)`, `X Parameter(Type type, string name,
+        Action<ParameterBuilder> configure)`, `X Parameter<T>(string name)`, `X Parameter<T>(string name, Action<ParameterBuilder> configure)`.
+      - ClassOrStructBuilder<TSelf>: `TSelf PrimaryParameter(Type type, string name)`, `TSelf PrimaryParameter(Type type, string name,
+        Action<ParameterBuilder> configure)`, `TSelf PrimaryParameter<T>(string name)`, `TSelf PrimaryParameter<T>(string name,
+        Action<ParameterBuilder> configure)`. ClassBuilder·StructBuilder·RecordBuilder(record와 record struct)가 모두 상속한다.
+      잘못된 Type이면 name 검사, 람다 실행, 목록 추가 전에 예외가 난다. by-ref Type은 ArgumentException이고 ref·out·in은 ParameterBuilder 수식어로
+      쓴다(스텝 s2와 같은 remarks).
+
+      출력 예:
+      - `CSharp.Indexer("string", i => i.Parameter<int>("index").Parameter(typeof(string), "key")).ToString()` →
+        `string this[int index, string key] { get; set; }\n`
+      - `CSharp.Operator("Money", "+", o => o.Public().Static().Parameter("Money", "left").Parameter<decimal>("right").Arrow("left")).ToString()` →
+        `public static Money operator +(Money left, decimal right) => left;\n`
+      - `CSharp.Record("Point", r => r.PrimaryParameter<int>("X").PrimaryParameter(typeof(int), "Y")).ToString()` → `record Point(int X, int Y);\n`
+
+      문서와 PublicAPI: 새 메서드마다 영어 XML 문서. 문구는 MethodBuilder의 Type·제네릭 Parameter 오버로드(스텝 s2)와 같게 쓰고, 요약의 대상만
+      인덱서·연산자·주 생성자로 바꾼다. RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예:
+      `Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter<T>(string! name) -> TSelf!`,
+      `Codrio.IndexerBuilder.Parameter(System.Type! type, string! name) -> Codrio.IndexerBuilder!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - tests/Codrio.Tests/Builders/ParameterTypeOverloadTests.cs에 추가, `OutputAssert.Equal`로: IndexerBuilder·OperatorBuilder의 네 오버로드와
+        class·struct·record·record struct의 PrimaryParameter 네 오버로드 출력, 같은 타입의 문자열·Type·제네릭 출력이 같음, 문자열과 섞은 순서,
+        람다 즉시 한 번 실행, Type 오버로드와 수식어·Default·Attribute 조합, 픽스처 타입, 본문 없는 record가 Type 주 생성자 매개변수만 가져도
+        `;`로 끝남, 잘못된 Type → ArgumentException(ParamName `type`)이고 람다 미실행·매개변수 미추가, 잘못된 이름 → ParamName `name`, null 인자
+        (`type`, `name`, `configure`), 체이닝 반환값(`Assert.Same`. PrimaryParameter는 ClassBuilder·StructBuilder·RecordBuilder 각각).
+      - `CompilationAssert.NoErrors`(입력은 `생성한 파일 + "\n" + TypeFixtures.Source`): 블록 namespace 안에 Type·제네릭 매개변수 인덱서를 가진
+        class, Type·제네릭 매개변수 연산자(`==`과 `!=`, 이항 `+`)를 가진 struct, Type·제네릭 주 생성자 매개변수를 가진 class·struct·record·
+        record struct(픽스처 타입 포함)를 담은 완결 파일. 주의: class·struct의 연산자는 `public static`이어야 하고(CS0558), 매개변수 중 하나는
+        담는 타입이어야 하며(CS0563), `==`는 `!=`와 짝이어야 한다(CS0216). Equals·GetHashCode 미재정의 경고(CS0660, CS0661)는 오류가 아니다.
+      - 기존 테스트 수정: 새 Type 오버로드 때문에 첫 인자가 `null!`인 호출이 CS0121이 된다. tests/Codrio.Tests/Builders/IndexerBuilderTests.cs
+        (현재 244·245·249행 부근 `builder.Parameter(null!, ...)`), OperatorBuilderTests.cs(274·275행 부근 `builder.Parameter(null!, ...)`),
+        ParameterBuilderTests.cs(409·410·414·415행 부근 `PrimaryParameter(null!, ...)`)의 그 호출만 첫 인자를 `(string)null!`로 바꾼다. 단언과 다른
+        테스트는 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: CSharp.Indexer·CSharp.Operator 등의 형식·반환 형식 오버로드(이유: 스텝 s5), Field·Property·Event 형식 오버로드(이유: 스텝 s4),
+      ParameterBuilder.Attribute 오버로드(이유: 스텝 s8), MethodBuilder·ConstructorBuilder·DelegateBuilder 변경(이유: 스텝 s2에서 끝났다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/IndexerBuilder.cs
+      - src/Codrio/Builders/OperatorBuilder.cs
+      - src/Codrio/Builders/ClassOrStructBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/ParameterTypeOverloadTests.cs
+      - tests/Codrio.Tests/Builders/IndexerBuilderTests.cs
+      - tests/Codrio.Tests/Builders/OperatorBuilderTests.cs
+      - tests/Codrio.Tests/Builders/ParameterBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s4-field-property-event-type-overloads
+    title: add System.Type and generic overloads to field, property and event types
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·5·7), docs/ADR.md(ADR-003·004·006), src/Codrio/Rendering/TypeName.cs,
+      src/Codrio/Builders/MethodBuilder.cs(스텝 s1·s2의 Type·제네릭 오버로드와 XML 문서 문구), src/Codrio/CSharp.cs(Field, Property, Event),
+      src/Codrio/Builders/ClassOrStructBuilder.cs(Field), src/Codrio/Builders/TypeDeclarationBuilder.cs(Property, Event), src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/ParameterTypeOverloadTests.cs(오버로드 테스트 구성 예), tests/Codrio.Tests/TestSupport/TypeFixtures.cs.
+
+      필드·속성·이벤트의 형식에 System.Type·제네릭 오버로드를 붙인다. 진입점(`CSharp`)과 타입 빌더의 람다 메서드 양쪽에 둔다(ADR-006: 람다와
+      `CSharp` + Add() 두 방식).
+
+      이 계획의 오버로드 규칙: Type 오버로드는 `TypeName.Render(type, nameof(type))`로 호출 시점에 바꾼 문자열을 기존 문자열 오버로드에 넘기고,
+      제네릭 오버로드는 같은 클래스의 Type 오버로드에 `typeof(T)`를 넘긴다. 람다 오버로드는 짝으로 두고 선택적 매개변수는 쓰지 않는다. 기존 문자열
+      오버로드는 고치지 마라. 이유: 기존 출력과 테스트가 그대로여야 한다. 제네릭 매개변수에 제약을 두지 마라.
+
+      공개 API:
+      - CSharp: Field·Property·Event 각각 네 개. 예: `static FieldBuilder Field(Type type, string name)` →
+        `Field(TypeName.Render(type, nameof(type)), name)`, `static FieldBuilder Field(Type type, string name, Action<FieldBuilder> configure)` →
+        `Field(TypeName.Render(type, nameof(type)), name, configure)`, `static FieldBuilder Field<T>(string name)` → `Field(typeof(T), name)`,
+        `static FieldBuilder Field<T>(string name, Action<FieldBuilder> configure)` → `Field(typeof(T), name, configure)`. Property(PropertyBuilder)·
+        Event(EventBuilder)도 같은 모양이다.
+      - ClassOrStructBuilder<TSelf>: `TSelf Field(Type type, string name)` → `Add(CSharp.Field(type, name))`, `TSelf Field(Type type, string name,
+        Action<FieldBuilder> configure)` → `Add(CSharp.Field(type, name, configure))`, `TSelf Field<T>(string name)` → `Field(typeof(T), name)`,
+        `TSelf Field<T>(string name, Action<FieldBuilder> configure)` → `Field(typeof(T), name, configure)`. 기존 문자열 Field가 `Add(CSharp.Field(...))`
+        인 것과 같은 패턴이다.
+      - TypeDeclarationBuilder<TSelf>: Property·Event 각각 같은 모양의 네 개(`Add(CSharp.Property(type, name))` 등).
+      Field는 계속 ClassOrStructBuilder에만 둔다. 이유: interface·enum·File·Namespace에 필드 진입점이 없다는 기존 규칙(ADR-003)과 그것을 확인하는
+      리플렉션 테스트(`UnsupportedContainers_DoNotExposeFieldEntryPoints` 등)가 있다.
+
+      출력 예:
+      - `CSharp.Field<int>("count").ToString()` → `int count;\n`
+      - `CSharp.Class("Service", c => c.Field(typeof(List<string>), "items", f => f.Private()).Property<string>("Name", p => p.Public())
+        .Event<EventHandler>("Changed", e => e.Public())).ToString()` →
+        `class Service\n{\n    private global::System.Collections.Generic.List<string> items;\n\n    public string Name { get; set; }\n\n    public event global::System.EventHandler Changed;\n}\n`
+
+      문서와 PublicAPI: 새 메서드마다 영어 XML 문서. type·T 설명과 ArgumentException 문구는 MethodBuilder의 Type·제네릭 오버로드와 같게 쓰고,
+      name·configure 설명과 요약은 같은 이름의 기존 문자열 오버로드 문구를 따른다(ArgumentException에 name이 올바른 식별자가 아닌 경우 포함).
+      RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예: `static Codrio.CSharp.Field<T>(string! name) -> Codrio.FieldBuilder!`,
+      `Codrio.TypeDeclarationBuilder<TSelf>.Event(System.Type! type, string! name) -> TSelf!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/MemberTypeOverloadTests.cs, `OutputAssert.Equal`로: CSharp의 Field·Property·Event 네 오버로드 단독 ToString,
+        ClassOrStructBuilder.Field(class·struct·record)와 TypeDeclarationBuilder.Property·Event(class·struct·interface·record)의 네 오버로드, 같은
+        타입의 문자열·Type·제네릭 출력이 같음, 람다 즉시 한 번 실행, `CSharp.Field<T>`로 만든 빌더를 Add한 경우, 픽스처·배열·Nullable 타입,
+        잘못된 Type(`typeof(List<>)`) → ArgumentException(ParamName `type`)이고 람다 미실행·멤버 미추가(출력 불변), 잘못된 이름 → ParamName
+        `name`, null 인자(`(Type)null!` → `type`, `name`, `configure`), 체이닝 반환값(`Assert.Same`. 타입 빌더 메서드는 각 빌더 종류).
+      - `CompilationAssert.NoErrors`(입력은 `생성한 파일 + "\n" + TypeFixtures.Source`. 이유: CS1529): 블록 namespace 안에 Type·제네릭으로 형식을
+        정한 필드(const 포함)·속성(Initializer 포함)·이벤트를 가진 class와 struct, 속성·이벤트를 가진 interface, 본문에 필드가 있는 record를 담은
+        완결 파일(BCL 제네릭·배열·Nullable·픽스처 타입 포함). 주의: const 필드는 상수식 초기화가 필요하다(CS0145).
+      - 기존 테스트 수정: 새 Type 오버로드 때문에 첫 인자가 `null!`인 호출이 CS0121이 된다. tests/Codrio.Tests/Builders/FieldBuilderTests.cs(현재
+        189·190·194·211·212·216행 부근), PropertyBuilderTests.cs(465·466·470·489·490·494행 부근), EventBuilderTests.cs(187·188·192·207·208·212행
+        부근)의 그 호출만 첫 인자를 `(string)null!`로 바꾼다. 단언과 다른 테스트는 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: Indexer·Operator·ImplicitOperator·ExplicitOperator 오버로드(이유: 스텝 s5), BaseType 오버로드(이유: 스텝 s6), FieldBuilder·
+      PropertyBuilder·EventBuilder 파일 변경(이유: 형식은 internal 생성자가 받고, 공개 진입점은 CSharp와 타입 빌더 메서드다), interface·File·
+      Namespace에 Field 추가(이유: 위 ADR-003 규칙).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/CSharp.cs
+      - src/Codrio/Builders/ClassOrStructBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/MemberTypeOverloadTests.cs
+      - tests/Codrio.Tests/Builders/FieldBuilderTests.cs
+      - tests/Codrio.Tests/Builders/PropertyBuilderTests.cs
+      - tests/Codrio.Tests/Builders/EventBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s5-indexer-operator-type-overloads
+    title: add System.Type and generic overloads to indexer and operator types
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·5·7), docs/ADR.md(ADR-004·006), src/Codrio/Rendering/TypeName.cs, src/Codrio/CSharp.cs(Indexer,
+      Operator, ImplicitOperator, ExplicitOperator와 스텝 s4가 추가한 Field·Property·Event의 Type·제네릭 오버로드와 XML 문서 문구),
+      src/Codrio/Builders/TypeDeclarationBuilder.cs(같은 메서드들과 스텝 s4의 Property·Event 오버로드), src/Codrio/Builders/OperatorBuilder.cs,
+      src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/MemberTypeOverloadTests.cs, tests/Codrio.Tests/TestSupport/TypeFixtures.cs.
+
+      인덱서 형식과 연산자 반환 형식, 변환 연산자 형식에 System.Type·제네릭 오버로드를 붙인다. 진입점(`CSharp`)과 TypeDeclarationBuilder<TSelf>의
+      람다 메서드 양쪽에 스텝 s4의 Property·Event와 같은 패턴으로 둔다.
+
+      이 계획의 오버로드 규칙: Type 오버로드는 `TypeName.Render(값, nameof(매개변수))`로 호출 시점에 바꾼 문자열을 기존 문자열 오버로드에 넘기고,
+      제네릭 오버로드는 같은 클래스의 Type 오버로드에 `typeof(T)`를 넘긴다. 람다 오버로드는 짝으로 두고 선택적 매개변수는 쓰지 않는다. 기존 문자열
+      오버로드는 고치지 마라. 이유: 기존 출력과 테스트가 그대로여야 한다. 제네릭 매개변수에 제약을 두지 마라.
+
+      공개 API(CSharp와 TypeDeclarationBuilder<TSelf>에 각각, 반환은 CSharp이면 해당 빌더, TypeDeclarationBuilder면 TSelf):
+      - `Indexer(Type type)`, `Indexer(Type type, Action<IndexerBuilder> configure)`, `Indexer<T>()`, `Indexer<T>(Action<IndexerBuilder> configure)`.
+      - `Operator(Type returnType, string symbol)`, `Operator(Type returnType, string symbol, Action<OperatorBuilder> configure)`,
+        `Operator<T>(string symbol)`, `Operator<T>(string symbol, Action<OperatorBuilder> configure)`. 변환은
+        `TypeName.Render(returnType, nameof(returnType))`이므로 예외 ParamName은 `returnType`이다(기존 문자열 오버로드의 매개변수 이름과 같다).
+      - `ImplicitOperator(Type type)`, `ImplicitOperator(Type type, Action<OperatorBuilder> configure)`, `ImplicitOperator<T>()`,
+        `ImplicitOperator<T>(Action<OperatorBuilder> configure)`. ExplicitOperator도 같은 모양이다.
+      TypeDeclarationBuilder의 Type 오버로드는 `Add(CSharp.X(...))`, 제네릭 오버로드는 같은 클래스의 Type 오버로드에 `typeof(T)`를 넘긴다.
+
+      출력 예:
+      - `CSharp.Indexer<int>(i => i.Parameter("int", "index")).ToString()` → `int this[int index] { get; set; }\n`
+      - `CSharp.Operator<bool>("==", o => o.Public().Static().Parameter("Money", "left").Parameter("Money", "right")
+        .Arrow("left.Amount == right.Amount")).ToString()` → `public static bool operator ==(Money left, Money right) => left.Amount == right.Amount;\n`
+      - `CSharp.ImplicitOperator<decimal>().ToString()` → `implicit operator decimal();\n`,
+        `CSharp.ExplicitOperator(typeof(TimeSpan)).ToString()` → `explicit operator global::System.TimeSpan();\n`
+
+      문서와 PublicAPI: 새 메서드마다 영어 XML 문서. type·returnType·T 설명과 ArgumentException 문구는 스텝 s4의 CSharp.Field Type·제네릭
+      오버로드와 같게 쓰고, symbol·configure 설명과 요약은 같은 이름의 기존 문자열 오버로드 문구를 따른다. RS0016 메시지 문자열 그대로
+      PublicAPI.Unshipped.txt 항목(예: `static Codrio.CSharp.Operator<T>(string! symbol) -> Codrio.OperatorBuilder!`,
+      `Codrio.TypeDeclarationBuilder<TSelf>.Indexer(System.Type! type) -> TSelf!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - tests/Codrio.Tests/Builders/MemberTypeOverloadTests.cs에 추가, `OutputAssert.Equal`로: CSharp의 Indexer·Operator·ImplicitOperator·
+        ExplicitOperator 각 네 오버로드 단독 ToString, TypeDeclarationBuilder의 같은 네 오버로드(class·struct·interface·record), 같은 타입의
+        문자열·Type·제네릭 출력이 같음, 람다 즉시 한 번 실행, CSharp로 만들어 Add한 경우, 잘못된 Type → ArgumentException(ParamName은 Indexer·
+        Implicit·Explicit이 `type`, Operator가 `returnType`)이고 람다 미실행·멤버 미추가, null 인자(Type, symbol, configure), 체이닝 반환값
+        (`Assert.Same`).
+      - `CompilationAssert.NoErrors`(입력은 `생성한 파일 + "\n" + TypeFixtures.Source`. 이유: CS1529): 블록 namespace 안에 Type·제네릭 형식의
+        인덱서를 가진 class와 interface, Type·제네릭 반환 형식의 `==`·`!=` 연산자와 Type·제네릭 implicit·explicit 변환 연산자를 가진 struct를
+        담은 완결 파일. 주의: class·struct 연산자는 `public static`(CS0558), `==`·`!=`는 짝(CS0216), 변환 연산자는 원본이나 대상 중 하나가 담는
+        타입이어야 한다(CS0556). CS0660·CS0661은 경고라 괜찮다.
+      - 기존 테스트 수정: 새 Type 오버로드 때문에 첫 인자가 `null!`인 호출이 CS0121이 된다. tests/Codrio.Tests/Builders/IndexerBuilderTests.cs
+        (현재 239·240·242·269·270·272행 부근 `Indexer(null!, ...)`)와 OperatorBuilderTests.cs(262·263·267·268·270·271·290·291·295·296·298·299행 부근
+        `Operator(null!, ...)`·`ImplicitOperator(null!, ...)`·`ExplicitOperator(null!, ...)`)의 그 호출만 첫 인자를 `(string)null!`로 바꾼다. 단언과
+        다른 테스트는 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: BaseType·UnderlyingType·Constraint 오버로드(이유: 스텝 s6), attribute 오버로드(이유: 스텝 s7·s8), OperatorBuilder·IndexerBuilder
+      파일 변경(이유: 매개변수 오버로드는 스텝 s3에서 끝났고 형식은 CSharp 진입점이 받는다), 연산자 기호 검증(이유: 기존 규칙, 컴파일러에 맡긴다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/CSharp.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/MemberTypeOverloadTests.cs
+      - tests/Codrio.Tests/Builders/IndexerBuilderTests.cs
+      - tests/Codrio.Tests/Builders/OperatorBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s6-declaration-type-overloads
+    title: add System.Type and generic overloads to base types, enum underlying types and type constraints
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·5), docs/ADR.md(ADR-003·004), src/Codrio/Rendering/TypeName.cs,
+      src/Codrio/Builders/MethodBuilder.cs(Type·제네릭 오버로드와 XML 문서 문구), src/Codrio/Builders/TypeDeclarationBuilder.cs(BaseType),
+      src/Codrio/Builders/EnumBuilder.cs(UnderlyingType), src/Codrio/Builders/TypeParameterBuilder.cs(Constraint), src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/TypeParameterBuilderTests.cs, tests/Codrio.Tests/Builders/MemberTypeOverloadTests.cs(오버로드 테스트 구성 예),
+      tests/Codrio.Tests/TestSupport/TypeFixtures.cs.
+
+      타입 선언 줄의 타입 참조(기반 타입·인터페이스, enum 기반 형식, 제네릭 타입 제약)에 System.Type·제네릭 오버로드를 붙인다.
+
+      이 계획의 오버로드 규칙: Type 오버로드는 `TypeName.Render(type, nameof(type))`로 호출 시점에 바꾼 문자열을 같은 클래스의 기존 문자열
+      오버로드에 넘기고, 제네릭 오버로드는 같은 클래스의 Type 오버로드에 `typeof(T)`를 넘긴다. 기존 문자열 오버로드는 고치지 마라. 이유: 기존
+      출력과 테스트가 그대로여야 한다. 제네릭 매개변수에 제약을 두지 마라.
+
+      공개 API:
+      - TypeDeclarationBuilder<TSelf>: `TSelf BaseType(Type type)`, `TSelf BaseType<T>()`. class·struct·interface·record·record struct가 상속한다.
+      - EnumBuilder: `EnumBuilder UnderlyingType(Type type)`, `EnumBuilder UnderlyingType<T>()`.
+      - TypeParameterBuilder: `TypeParameterBuilder Constraint(Type type)`, `TypeParameterBuilder Constraint<T>()`. 기존 문자열 오버로드의 매개변수
+        이름은 `constraint`지만 새 오버로드는 `type`이고 예외 ParamName도 `type`이다. 타입·메서드·델리게이트의 TypeParameter 람다가 모두 이 빌더를
+        쓰므로 세 곳 모두에 적용된다.
+      타입 종류를 검증하지 마라(enum 기반 형식이 정수형인지, 기반 타입이 sealed인지, 제약이 object인지 등). 이유: 문자열 오버로드도 검증하지 않고
+      판단은 컴파일러에 맡긴다(ADR 원칙). 키워드 별칭 규칙 때문에 `UnderlyingType<byte>()`는 `byte`가 되어 그대로 컴파일된다.
+
+      출력 예:
+      - `CSharp.Class("Widget", c => c.BaseType<Collection<int>>().BaseType(typeof(IDisposable))).ToString()` →
+        `class Widget : global::System.Collections.ObjectModel.Collection<int>, global::System.IDisposable\n{\n}\n`
+      - `CSharp.Enum("Level", e => e.UnderlyingType<byte>().Member("Low")).ToString()` → `enum Level : byte\n{\n    Low\n}\n`
+      - `CSharp.Class("Repo", c => c.TypeParameter("T", t => t.Constraint("class").Constraint<IDisposable>())).ToString()` →
+        `class Repo<T> where T : class, global::System.IDisposable\n{\n}\n`
+      - `CSharp.Method("Use", m => m.TypeParameter("T", t => t.Constraint(typeof(IComparable<int>)))).ToString()` →
+        `void Use<T>() where T : global::System.IComparable<int>;\n`
+
+      문서와 PublicAPI: 새 메서드마다 영어 XML 문서. type·T 설명과 ArgumentException 문구는 MethodBuilder의 Type·제네릭 오버로드와 같게 쓰고,
+      요약은 같은 이름의 기존 문자열 오버로드 문구를 따른다. RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예:
+      `Codrio.TypeDeclarationBuilder<TSelf>.BaseType<T>() -> TSelf!`, `Codrio.TypeParameterBuilder.Constraint(System.Type! type) ->
+      Codrio.TypeParameterBuilder!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/DeclarationTypeOverloadTests.cs, `OutputAssert.Equal`로: BaseType 두 오버로드를 class·struct·interface·record·
+        record struct 각각에서, 문자열 BaseType과 섞은 순서, 주 생성자·타입 매개변수·제약과 함께 쓴 선언 줄, 본문 없는 record가 `;`로 끝남,
+        UnderlyingType 두 오버로드(키워드 별칭, 마지막 호출이 이김), Constraint 두 오버로드를 class·method·delegate의 타입 매개변수에서(문자열
+        제약 `class`·`new()`와 섞은 순서), 같은 타입의 문자열·Type·제네릭 출력이 같음, 픽스처 타입(`Outer<int>.Leaf`) 기반 클래스, 잘못된 Type
+        (`typeof(List<>)`) → ArgumentException(ParamName `type`)이고 출력 불변, `(Type)null!` → ArgumentNullException(ParamName `type`), 체이닝
+        반환값(`Assert.Same`).
+      - `CompilationAssert.NoErrors`(입력은 `생성한 파일 + "\n" + TypeFixtures.Source`. 이유: CS1529): 블록 namespace 안에 픽스처
+        `Outer<int>.Leaf`를 상속하고 `IDisposable`을 구현하는 class(Dispose 메서드 포함), `BaseType<IDisposable>()` interface, 기반 형식 byte·long
+        enum, Type·제네릭 제약을 가진 제네릭 class·메서드·delegate를 담은 완결 파일. 주의: 인터페이스 멤버를 구현해야 한다(CS0535). object 같은
+        특수 클래스는 제약이 될 수 없다(CS0702). `class` 제약은 다른 제약보다 앞이어야 한다(CS0449).
+      - 기존 테스트 수정: 새 Type 오버로드 때문에 `null!` 인자 호출이 CS0121이 된다. tests/Codrio.Tests/Builders/ClassBuilderTests.cs(현재 125행
+        부근 `BaseType(null!)`), EnumBuilderTests.cs(241행 부근 `UnderlyingType(null!)`), TypeParameterBuilderTests.cs(73행 부근
+        `Constraint(null!)`)의 그 호출만 인자를 `(string)null!`로 바꾼다. 단언과 다른 테스트는 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: attribute 오버로드(이유: 스텝 s7·s8), TypeParameter 이름의 Type 오버로드(이유: 타입 매개변수 이름은 타입 참조가 아니라 식별자다),
+      `class`·`struct`·`new()`·`unmanaged`·`notnull` 같은 특수 제약 전용 메서드(이유: PRD에 없고 문자열 Constraint로 쓴다), 타입 종류 검증(위 이유).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/Builders/EnumBuilder.cs
+      - src/Codrio/Builders/TypeParameterBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/DeclarationTypeOverloadTests.cs
+      - tests/Codrio.Tests/Builders/ClassBuilderTests.cs
+      - tests/Codrio.Tests/Builders/EnumBuilderTests.cs
+      - tests/Codrio.Tests/Builders/TypeParameterBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s7-type-member-attribute-overloads
+    title: add System.Type and generic attribute overloads to types and members
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·3의 attribute 설명, 5), docs/ARCHITECTURE.md("레이어 규칙"), docs/ADR.md(ADR-004),
+      src/Codrio/Rendering/TypeName.cs, src/Codrio/Rendering/AttributeSyntax.cs, src/Codrio/Builders/TypeBuilder.cs(Attribute, WritePreamble),
+      src/Codrio/Builders/MemberBuilder.cs(Attribute), src/Codrio/Builders/MethodBuilder.cs(Type·제네릭 오버로드와 XML 문서 문구),
+      src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/TypeAttributeTests.cs, tests/Codrio.Tests/Builders/MemberAttributeTests.cs,
+      tests/Codrio.Tests/TestSupport/TypeFixtures.cs.
+
+      타입과 멤버의 attribute 이름에 System.Type·제네릭 오버로드를 붙인다. 공통 기능이므로 제네릭 기반 클래스 TypeBuilder<TSelf>와
+      MemberBuilder<TSelf>에 두고 `TSelf`를 반환한다(ARCHITECTURE 레이어 규칙). 그래서 모든 타입 빌더(enum 포함)와 모든 멤버 빌더(델리게이트 포함)에
+      적용된다.
+
+      공개 API(TypeBuilder<TSelf>와 MemberBuilder<TSelf> 각각):
+      - `public TSelf Attribute(Type type, params string[] arguments)` → `Attribute(TypeName.Render(type, nameof(type)), arguments)`.
+      - `public TSelf Attribute<TAttribute>(params string[] arguments) where TAttribute : System.Attribute` → `Attribute(typeof(TAttribute), arguments)`.
+        제약을 쓸 때 `System.Attribute`로 완전히 적는다. 이유: 같은 클래스에 `Attribute` 메서드가 있어 읽는 사람이 헷갈린다.
+      출력 이름은 변환기 결과 그대로이며 `Attribute` 접미사를 떼지 않는다(`[global::System.ObsoleteAttribute("msg")]`). 이유: 이 저장소는 attribute
+      이름을 가공하지 않으며(ADR-004), 접미사가 붙은 완전 한정 이름은 항상 해석된다. `return:` 같은 대상 접두어는 Type 오버로드로 쓸 수 없고
+      문자열 오버로드로만 쓴다. 이 점을 XML 문서 remarks에 적는다. Type 오버로드는 Attribute 파생 여부를 검사하지 마라. 이유: 문자열 오버로드도
+      검사하지 않고 판단은 컴파일러에 맡긴다(ADR 원칙). 제네릭 오버로드의 제약은 런타임 비용 없이 컴파일 단계에서 막으므로 둔다.
+      검사 순서: type 변환(null → ArgumentNullException `type`, 쓸 수 없는 Type → ArgumentException `type`)이 먼저이고, 그다음 기존
+      `AttributeSyntax.Render`가 arguments null·null 요소를 검사한다(ParamName `arguments`). 어느 쪽이든 예외면 attribute가 추가되지 않는다.
+      기존 문자열 Attribute와 WritePreamble은 고치지 마라. 이유: 기존 출력(문서 줄, attribute 줄, 선언 줄 순서)이 그대로여야 한다.
+
+      출력 예:
+      - `CSharp.Class("Widget", c => c.Public().Attribute<SerializableAttribute>().Attribute(typeof(ObsoleteAttribute), "\"Use Gadget.\"", "true"))
+        .ToString()` → `[global::System.SerializableAttribute]\n[global::System.ObsoleteAttribute("Use Gadget.", true)]\npublic class Widget\n{\n}\n`
+      - `CSharp.Method("Trace", m => m.Attribute<ConditionalAttribute>("\"DEBUG\"")).ToString()` →
+        `[global::System.Diagnostics.ConditionalAttribute("DEBUG")]\nvoid Trace();\n`
+
+      문서와 PublicAPI: 새 메서드마다 영어 XML 문서(summary, param 또는 typeparam, returns, exception, remarks). type·TAttribute 설명과
+      ArgumentException 문구는 MethodBuilder의 Type·제네릭 오버로드와 같게 쓰고, arguments 설명은 기존 문자열 Attribute 문구를 따른다. RS0016
+      메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예: `Codrio.TypeBuilder<TSelf>.Attribute(System.Type! type, params string![]! arguments)
+      -> TSelf!`, `Codrio.MemberBuilder<TSelf>.Attribute<TAttribute>(params string![]! arguments) -> TSelf!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/AttributeTypeOverloadTests.cs, `OutputAssert.Equal`로: 두 오버로드의 인자 없음·하나·여러 개, 문자열
+        Attribute와 섞은 순서와 중복 유지, Doc과 함께 쓸 때 문서 → attribute → 선언 순서, class·struct·interface·record(본문 없는 `;` 형식)·
+        record struct·enum 각각, 8개 멤버(method·field·constructor·property·indexer·event·delegate·operator) 각각의 단독 ToString과 타입 본문 안
+        들여쓰기, 같은 attribute 타입의 문자열(`global::System.ObsoleteAttribute`)·Type·제네릭 출력이 같음, 픽스처가 아닌 BCL attribute만 사용,
+        잘못된 Type(`typeof(List<>)`) → ArgumentException(ParamName `type`)이고 attribute 미추가, `Attribute((Type)null!)` → ParamName `type`,
+        `Attribute(typeof(ObsoleteAttribute), (string[])null!)`와 null 요소 → ParamName `arguments`, 체이닝 반환값(`Assert.Same`, 타입 빌더 5종과
+        멤버 빌더 8종).
+      - `CompilationAssert.NoErrors`: 블록 namespace 안에 Type·제네릭 attribute만 쓴 `[global::System.SerializableAttribute]` class,
+        `[global::System.FlagsAttribute]` enum, `[global::System.Runtime.InteropServices.StructLayoutAttribute(global::System.Runtime.InteropServices.LayoutKind.Sequential)]`
+        struct, `[global::System.ObsoleteAttribute]` interface와 record, 그리고 `[global::System.NonSerializedAttribute]` 필드,
+        `[global::System.Diagnostics.ConditionalAttribute("DEBUG")]` void 메서드, `[global::System.ComponentModel.BrowsableAttribute(false)]` 속성,
+        `[global::System.Runtime.CompilerServices.IndexerNameAttribute("Entry")]` 인덱서, `[global::System.ObsoleteAttribute]` 이벤트·생성자·
+        delegate·연산자를 담은 완결 파일. 주의: attribute는 대상 종류에 맞아야 한다(CS0592). Conditional은 void 메서드에만 쓰고(CS0578) 연산자·
+        생성자(CS0577), override(CS0243), interface 구현 메서드(CS0629)에는 쓸 수 없다. AllowMultiple이 아닌 attribute 중복은 CS0579다.
+      - 기존 테스트 수정: 새 Type 오버로드 때문에 `Attribute(null!)`가 CS0121이 된다. tests/Codrio.Tests/Builders/TypeAttributeTests.cs(현재 146행
+        부근)와 MemberAttributeTests.cs(192행 부근)의 그 호출만 `Attribute((string)null!)`로 바꾼다. 단언과 다른 테스트는 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: ParameterBuilder·EnumMemberBuilder의 attribute 오버로드(이유: 스텝 s8), `Attribute` 접미사 제거나 대상 접두어를 받는 Type 오버로드
+      (이유: 위 ADR-004 이유와 작업 범위), AttributeSyntax 변경(이유: 형식 규칙은 이미 한 곳에 있고 그대로 재사용한다), `[assembly: ...]` 진입점
+      (이유: PRD 범위 밖, Raw()로 대신한다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/TypeBuilder.cs
+      - src/Codrio/Builders/MemberBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/AttributeTypeOverloadTests.cs
+      - tests/Codrio.Tests/Builders/TypeAttributeTests.cs
+      - tests/Codrio.Tests/Builders/MemberAttributeTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s8-parameter-enum-member-attribute-overloads
+    title: add System.Type and generic attribute overloads to parameters and enum members
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 1~7, 공통 완료 기준), docs/ADR.md(ADR-004·006), src/Codrio/Builders/TypeBuilder.cs(스텝 s7의
+      Type·제네릭 Attribute 오버로드와 XML 문서 문구), src/Codrio/Builders/ParameterBuilder.cs(Attribute, RenderParameter),
+      src/Codrio/Builders/EnumMemberBuilder.cs(Attribute), src/Codrio/Rendering/TypeName.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/AttributeTypeOverloadTests.cs, tests/Codrio.Tests/Builders/AttributeDocCompositionTests.cs(통합 테스트 구성 예),
+      tests/Codrio.Tests/TestSupport/TypeFixtures.cs.
+
+      매개변수(주 생성자 매개변수 포함)와 enum 멤버의 attribute 이름에 System.Type·제네릭 오버로드를 붙이고, 이 계획의 모든 오버로드를 섞어 쓴
+      통합 테스트로 계획을 마무리한다.
+
+      공개 API(ParameterBuilder와 EnumMemberBuilder 각각, X는 그 빌더 타입): 스텝 s7의 TypeBuilder 오버로드와 같은 의미다.
+      - `public X Attribute(Type type, params string[] arguments)` → `Attribute(TypeName.Render(type, nameof(type)), arguments)`.
+      - `public X Attribute<TAttribute>(params string[] arguments) where TAttribute : System.Attribute` → `Attribute(typeof(TAttribute), arguments)`.
+      출력 이름은 변환기 결과 그대로(`Attribute` 접미사 유지)이고, 대상 접두어(`property:`, `param:`)는 문자열 오버로드로만 쓴다(remarks에 적는다).
+      매개변수 attribute는 기존 규칙대로 같은 줄 수식어 앞에, enum 멤버 attribute는 멤버 줄 앞 줄에 나온다. 기존 문자열 Attribute, RenderParameter,
+      EnumMemberBuilder.Write·WritePreamble은 고치지 마라. 이유: 기존 출력 규칙이 이미 테스트되어 있다.
+
+      출력 예:
+      - `CSharp.Method("Log", m => m.Parameter<string>("caller", p => p.Attribute<CallerMemberNameAttribute>().Default("\"\""))).ToString()` →
+        `void Log([global::System.Runtime.CompilerServices.CallerMemberNameAttribute] string caller = "");\n`
+      - `CSharp.Enum("Color", e => e.Member("Red", m => m.Attribute(typeof(ObsoleteAttribute), "\"Use Crimson.\"")).Member("Green")).ToString()` →
+        `enum Color\n{\n    [global::System.ObsoleteAttribute("Use Crimson.")]\n    Red,\n    Green\n}\n`
+
+      문서와 PublicAPI: 새 메서드마다 영어 XML 문서. 문구는 스텝 s7의 TypeBuilder Type·제네릭 Attribute 오버로드와 같게 쓰고, 위치 설명은 각
+      빌더의 기존 문자열 Attribute 문구(같은 줄 수식어 앞 / 멤버 줄 앞)를 따른다. RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예:
+      `Codrio.ParameterBuilder.Attribute<TAttribute>(params string![]! arguments) -> Codrio.ParameterBuilder!`,
+      `Codrio.EnumMemberBuilder.Attribute(System.Type! type, params string![]! arguments) -> Codrio.EnumMemberBuilder!`). PublicAPI.Shipped.txt는
+      건드리지 마라.
+
+      테스트:
+      - tests/Codrio.Tests/Builders/AttributeTypeOverloadTests.cs에 추가, `OutputAssert.Equal`로: ParameterBuilder 두 오버로드의 ToString 조각
+        (인자 없음·여러 개, 문자열 Attribute와 섞은 순서, `this`·`ref`·`out`·`params` 수식어와 Default가 있을 때 attribute가 맨 앞), 메서드·
+        생성자·delegate·인덱서·연산자 매개변수와 class·record 주 생성자 매개변수 안에서의 출력, EnumMemberBuilder 두 오버로드(첫·중간·마지막 멤버의
+        쉼표 위치, Doc과 함께 쓸 때 문서 → attribute → 멤버 줄 순서), 같은 attribute 타입의 문자열·Type·제네릭 출력이 같음, 잘못된 Type → ArgumentException
+        (ParamName `type`)이고 attribute 미추가, null 인자(`type`, `arguments` 배열과 null 요소), 체이닝 반환값(`Assert.Same`). ParameterBuilder와
+        EnumMemberBuilder는 담는 빌더의 람다로 얻는다.
+        `CompilationAssert.NoErrors`: `#nullable enable`과 블록 namespace 안에 `[global::System.Runtime.CompilerServices.CallerMemberNameAttribute]
+        string caller = ""` 매개변수 메서드, `[global::System.Diagnostics.CodeAnalysis.NotNullWhenAttribute(true)] out string? value` 매개변수를
+        가진 `bool TryGet`(본문에서 대입 후 반환), Type·제네릭 attribute가 있는 생성자·delegate 매개변수, `[global::System.ObsoleteAttribute("...")]`·
+        `[global::System.ComponentModel.DescriptionAttribute("read")]` enum 멤버를 담은 완결 파일. 주의: CallerMemberName은 기본값이 있어야 한다
+        (CS4021). out 매개변수는 반환 전에 대입해야 한다(CS0177).
+      - 새 tests/Codrio.Tests/Builders/TypeOverloadCompositionTests.cs: AutoGeneratedHeader·NullableEnable·Using("System")과 블록 namespace 안에,
+        이 계획의 모든 오버로드 종류를 Type과 제네릭으로 섞어 쓴 완결 파일 하나의 기대 문자열 정확 일치와 `CompilationAssert.NoErrors`(입력은
+        `생성한 파일 + "\n" + TypeFixtures.Source`. 이유: 생성 파일의 using이 다른 선언보다 앞에 와야 한다, CS1529). 포함할 것: Returns·
+        Parameter·Attribute를 Type·제네릭으로 쓴 delegate, UnderlyingType<byte>·Attribute<FlagsAttribute>와 Type attribute가 있는 멤버를 가진
+        enum, BaseType<IDisposable>와 Type·제네릭 형식의 메서드·속성·이벤트·인덱서를 가진 interface, 그 interface를 구현하며 Type·제네릭 제약,
+        픽스처 기반 클래스(`Outer<int>.Leaf`), Field<T>·Field(Type), 생성자 Parameter<T>, Type attribute가 있는 매개변수, 픽스처 중첩 제네릭·배열·
+        Nullable 형식을 쓰는 class, Type·제네릭 반환 형식 연산자(`==`·`!=`)와 implicit·explicit 변환 연산자를 가진 struct, PrimaryParameter<T>를
+        가진 record. 요소는 람다와 `CSharp.*` + `Add()` 두 방식을 섞는다. 참조는 모두 같은 파일, 픽스처 소스, BCL로 해석되게 한다(PRD 공통 완료
+        기준). 주의: 인터페이스 구현(CS0535), 연산자 `public static`(CS0558)과 `==`·`!=` 짝(CS0216), 변환 연산자의 담는 타입(CS0556), record에
+        `==`·`!=`를 선언하지 않음(CS0111). 픽스처를 붙이는 입력에는 파일 범위 namespace를 쓰지 마라(블록 namespace와 섞을 수 없다).
+      - 기존 테스트 수정: 새 Type 오버로드 때문에 `Attribute(null!)`가 CS0121이 된다. tests/Codrio.Tests/Builders/ParameterBuilderTests.cs(현재 94행
+        부근 `p.Attribute(null!)`)와 EnumMemberBuilderTests.cs(249행 부근 `m.Attribute(null!)`)의 그 호출만 `Attribute((string)null!)`로 바꾼다.
+        단언과 다른 테스트는 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: 이 계획의 다른 오버로드나 TypeName 변경(이유: 스텝 s1~s7에서 끝났다. 통합 테스트에서 실패가 나면 원인을 blockers에 적는다),
+      TypeParameterBuilder·AccessorBuilder의 attribute(이유: 작업 범위에 없다), using 자동 수집(이유: ADR-004, PRD 범위 밖), 기존 테스트 기대값
+      변경(이유: 기존 문자열 오버로드의 출력은 그대로여야 한다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/ParameterBuilder.cs
+      - src/Codrio/Builders/EnumMemberBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/AttributeTypeOverloadTests.cs
+      - tests/Codrio.Tests/Builders/TypeOverloadCompositionTests.cs
+      - tests/Codrio.Tests/Builders/ParameterBuilderTests.cs
+      - tests/Codrio.Tests/Builders/EnumMemberBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
