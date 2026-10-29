@@ -271,8 +271,8 @@ public class OperatorBuilderTests
         Assert.Throws<ArgumentNullException>("type", () => CSharp.ExplicitOperator(null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.ExplicitOperator("int", null!));
         var builder = CSharp.Operator("int", "+").Arrow("1");
-        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "value"));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "value", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "value"));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "value", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter("int", "value", null!));

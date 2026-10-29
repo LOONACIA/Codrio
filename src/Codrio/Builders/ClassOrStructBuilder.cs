@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Codrio.Rendering;
 
 namespace Codrio;
 
@@ -46,6 +47,44 @@ public abstract class ClassOrStructBuilder<TSelf> : TypeDeclarationBuilder<TSelf
         primaryParameters.Add(builder);
         return (TSelf)this;
     }
+
+    /// <summary>Adds a primary constructor parameter from a <see cref="Type"/> to the end of the parameter list.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The parameter identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    /// <remarks>For ref, out, or in parameters, use a non-by-ref type and configure the parameter with <see cref="ParameterBuilder.Ref"/>, <see cref="ParameterBuilder.Out"/>, or <see cref="ParameterBuilder.In"/>. By-ref types are rejected with <see cref="ArgumentException"/>.</remarks>
+    public TSelf PrimaryParameter(Type type, string name) => PrimaryParameter(TypeName.Render(type, nameof(type)), name);
+
+    /// <summary>Immediately configures a new parameter builder and adds it to the primary constructor.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The parameter identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    /// <remarks>For ref, out, or in parameters, use a non-by-ref type and configure the parameter with <see cref="ParameterBuilder.Ref"/>, <see cref="ParameterBuilder.Out"/>, or <see cref="ParameterBuilder.In"/>. By-ref types are rejected with <see cref="ArgumentException"/>.</remarks>
+    public TSelf PrimaryParameter(Type type, string name, Action<ParameterBuilder> configure) => PrimaryParameter(TypeName.Render(type, nameof(type)), name, configure);
+
+    /// <summary>Adds a primary constructor parameter from <typeparamref name="T"/> to the end of the parameter list.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The parameter identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    /// <remarks>For ref, out, or in parameters, use a non-by-ref type and configure the parameter with <see cref="ParameterBuilder.Ref"/>, <see cref="ParameterBuilder.Out"/>, or <see cref="ParameterBuilder.In"/>. By-ref types are rejected with <see cref="ArgumentException"/>.</remarks>
+    public TSelf PrimaryParameter<T>(string name) => PrimaryParameter(typeof(T), name);
+
+    /// <summary>Immediately configures a new parameter builder and adds it to the primary constructor.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The parameter identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    /// <remarks>For ref, out, or in parameters, use a non-by-ref type and configure the parameter with <see cref="ParameterBuilder.Ref"/>, <see cref="ParameterBuilder.Out"/>, or <see cref="ParameterBuilder.In"/>. By-ref types are rejected with <see cref="ArgumentException"/>.</remarks>
+    public TSelf PrimaryParameter<T>(string name, Action<ParameterBuilder> configure) => PrimaryParameter(typeof(T), name, configure);
 
     /// <summary>Adds a field declaration without an initializer.</summary>
     /// <param name="type">The type reference, written without validation.</param>
