@@ -91,7 +91,7 @@ public class ParameterBuilderTests
         {
             p.Attribute("Existing");
 
-            Assert.Throws<ArgumentNullException>("name", () => p.Attribute(null!));
+            Assert.Throws<ArgumentNullException>("name", () => p.Attribute((string)null!));
             Assert.Throws<ArgumentNullException>("arguments", () => p.Attribute("X", (string[])null!));
             Assert.Throws<ArgumentNullException>("arguments", () => p.Attribute("X", "a", null!));
             OutputAssert.Equal("[Existing] string value", p.ToString());

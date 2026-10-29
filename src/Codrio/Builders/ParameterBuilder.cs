@@ -35,6 +35,24 @@ public sealed class ParameterBuilder
         return this;
     }
 
+    /// <summary>Adds an attribute from a <see cref="Type"/> on the same line before the parameter modifiers.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="arguments">Raw argument strings joined with <c>, </c> inside parentheses. An empty array omits the parentheses.</param>
+    /// <returns>This parameter builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="arguments"/>, or an element of <paramref name="arguments"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    /// <remarks>The Attribute suffix is preserved. Target prefixes such as <c>property:</c> or <c>param:</c> require the string overload. Whether the type derives from System.Attribute is not validated.</remarks>
+    public ParameterBuilder Attribute(Type type, params string[] arguments) => Attribute(TypeName.Render(type, nameof(type)), arguments);
+
+    /// <summary>Adds an attribute from <typeparamref name="TAttribute"/> on the same line before the parameter modifiers.</summary>
+    /// <typeparam name="TAttribute">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="arguments">Raw argument strings joined with <c>, </c> inside parentheses. An empty array omits the parentheses.</param>
+    /// <returns>This parameter builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="arguments"/> or an element of <paramref name="arguments"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="TAttribute"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    /// <remarks>The Attribute suffix is preserved. Target prefixes such as <c>property:</c> or <c>param:</c> require the string overload.</remarks>
+    public ParameterBuilder Attribute<TAttribute>(params string[] arguments) where TAttribute : System.Attribute => Attribute(typeof(TAttribute), arguments);
+
     /// <summary>Includes the ref modifier once.</summary>
     /// <returns>This parameter builder.</returns>
     public ParameterBuilder Ref()

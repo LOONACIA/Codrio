@@ -62,6 +62,8 @@ Codrio.EnumBuilder.UnderlyingType(System.Type! type) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.UnderlyingType<T>() -> Codrio.EnumBuilder!
 Codrio.EnumMemberBuilder
 Codrio.EnumMemberBuilder.Attribute(string! name, params string![]! arguments) -> Codrio.EnumMemberBuilder!
+Codrio.EnumMemberBuilder.Attribute(System.Type! type, params string![]! arguments) -> Codrio.EnumMemberBuilder!
+Codrio.EnumMemberBuilder.Attribute<TAttribute>(params string![]! arguments) -> Codrio.EnumMemberBuilder!
 Codrio.EnumMemberBuilder.Doc(System.Action<Codrio.DocBuilder!>! configure) -> Codrio.EnumMemberBuilder!
 Codrio.EventBuilder
 Codrio.FieldBuilder
@@ -173,6 +175,8 @@ Codrio.OperatorBuilder.Parameter<T>(string! name) -> Codrio.OperatorBuilder!
 Codrio.OperatorBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.OperatorBuilder!
 Codrio.ParameterBuilder
 Codrio.ParameterBuilder.Attribute(string! name, params string![]! arguments) -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.Attribute(System.Type! type, params string![]! arguments) -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.Attribute<TAttribute>(params string![]! arguments) -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.Default(string! expression) -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.In() -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.Out() -> Codrio.ParameterBuilder!
