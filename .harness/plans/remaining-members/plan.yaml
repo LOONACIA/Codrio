@@ -1,0 +1,545 @@
+id: remaining-members
+goal: >
+  PRD 핵심 기능 3의 나머지 멤버인 property·indexer·event·operator·delegate를 구현한다. `MemberBuilder<TSelf>` 아래에
+  접근자 모델(Get/Set/Init, 접근자 Body/Arrow, 선언 전체 Arrow)을 공유하는 `PropertyOrIndexerBuilder<TSelf>`를 두고, 그 위에
+  PropertyBuilder(람다 생략 시 `{ get; set; }`, Initializer)와 IndexerBuilder(매개변수, `this[...]`), 접근자 조각을 렌더링하는
+  AccessorBuilder, 필드형 EventBuilder, 일반 연산자와 implicit·explicit 변환 연산자를 만드는 OperatorBuilder, 반환 형식·제네릭
+  제약·매개변수를 가진 DelegateBuilder를 만든다. 다섯 멤버는 class·struct·interface·record(record struct 포함) 본문에, delegate는
+  File·Namespace에도 람다와 `CSharp` 진입점 + Add() 두 방식으로 넣을 수 있고, enum에는 멤버 메서드가 없다. 완료는 기능마다 기대
+  문자열 정확 일치 테스트와 완결 파일의 Roslyn 오류 진단 0개 테스트가 있고, `dotnet build Codrio.slnx -c Release`와
+  `dotnet test Codrio.slnx`가 net10.0·net48에서 통과하며, 새 공개 API가 영어 XML 문서와 PublicAPI.Unshipped.txt 항목을 갖는
+  상태다. 생성 코드용 attribute·Doc, System.Type 오버로드, 접근자별 접근 제한자, add/remove 이벤트 접근자는 이 계획에서 하지 않는다.
+approved: true
+branch_prefix: feat
+max_attempts: 3
+ac_timeout_sec: 900
+steps:
+  - id: s1-property-declarations
+    title: add PropertyBuilder with auto accessors, initializers and expression bodies
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·5·6·7, "범위 밖"), docs/ARCHITECTURE.md("레이어 규칙", "횡단 관심사"),
+      docs/ADR.md(ADR-002·003·004·006), src/Codrio/Builders/MemberBuilder.cs(공통 수식어와 RenderModifiers),
+      src/Codrio/Builders/FieldBuilder.cs(형식·이름 검증, Initializer, Write 패턴), src/Codrio/Builders/MethodBuilder.cs(Body·Arrow의
+      마지막 호출 규칙), src/Codrio/Builders/BodyBuilder.cs(멤버가 아닌 빌더의 CodeWriter 기반 ToString 패턴),
+      src/Codrio/Builders/TypeDeclarationBuilder.cs(Method·Add 진입점과 `items` 목록), src/Codrio/CSharp.cs,
+      src/Codrio/Rendering/CodeWriter.cs, src/Codrio/Rendering/Identifier.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/FieldBuilderTests.cs(테스트 구성 예), tests/Codrio.Tests/TestSupport/OutputAssert.cs,
+      tests/Codrio.Tests/TestSupport/CompilationAssert.cs.
+
+      속성 선언 빌더를 추가하고 class·struct·interface·record(record struct 포함) 본문에 람다와 Add()로 넣을 수 있게 한다. 이 스텝은
+      한 줄로 끝나는 형식만 다룬다: 본문 없는 접근자 목록(`{ get; set; }`), 초기화 식, 속성 전체의 식 본문. 접근자 본문(블록·식)은
+      스텝 s2에서, 인덱서는 스텝 s3에서 같은 접근자 모델을 재사용해 추가한다. 이 계획의 계층은 `MemberBuilder<TSelf>` ←
+      `PropertyOrIndexerBuilder<TSelf>`(접근자 모델 공통) ← sealed `PropertyBuilder`(이 스텝)·`IndexerBuilder`(스텝 s3)다.
+
+      공개 API(모두 `namespace Codrio;`):
+      - 새 src/Codrio/Builders/AccessorBuilder.cs: `public sealed class AccessorBuilder`(멤버 빌더가 아님, BodyBuilder처럼 독립 클래스),
+        internal 생성자 `AccessorBuilder(string keyword)`(`get`, `set`, `init` 중 하나를 internal 필드 `keyword`에 그대로 저장),
+        `internal void Write(CodeWriter writer)`(이 스텝에서는 `<keyword>;` 한 줄), `public override string ToString()`(새 CodeWriter에
+        Write한 결과, 예 `get;\n`). 이 스텝에서는 다른 공개 멤버가 없다. 이유: 접근자 본문(Body/Arrow)과 AccessorBuilder를 받는
+        람다 오버로드는 스텝 s2에서 추가한다.
+      - 새 src/Codrio/Builders/PropertyOrIndexerBuilder.cs: `public abstract class PropertyOrIndexerBuilder<TSelf> : MemberBuilder<TSelf>
+        where TSelf : PropertyOrIndexerBuilder<TSelf>`, internal 매개변수 없는 생성자. 상태는 internal 필드 `AccessorBuilder? getter`,
+        `AccessorBuilder? setter`(set 또는 init), `string? expression`.
+        - `TSelf Get()`: getter를 새 `AccessorBuilder("get")`로 바꾼다. `TSelf Set()`, `TSelf Init()`: setter를 새
+          `AccessorBuilder("set")`/`AccessorBuilder("init")`로 바꾼다. Set과 Init은 같은 자리이고 마지막 호출이 이긴다. 이유: C#은 한
+          선언에 set과 init을 함께 허용하지 않고, 이 라이브러리는 같은 자리를 다시 지정하면 마지막 호출이 이기는 규칙을 쓴다.
+          셋 다 expression을 null로 지운다.
+        - `TSelf Arrow(string expression)`: 선언 전체의 식 본문. null이면 ArgumentNullException(`expression`), 검증 없이 그대로
+          출력한다(ADR-004). getter와 setter를 null로 지운다. 즉 Arrow와 접근자 지정 사이에서는 마지막 호출이 이긴다(MethodBuilder의
+          Body/Arrow와 같은 규칙).
+        - `internal void WriteDeclaration(CodeWriter writer, string head, string? initializer)`: 수식어를 포함한 선언 머리를 받아 아래
+          출력 규칙대로 쓴다. 파생 클래스의 Write가 이것을 호출한다. 이유: 스텝 s3의 IndexerBuilder가 머리만 바꿔 같은 렌더링을 쓴다.
+      - 새 src/Codrio/Builders/PropertyBuilder.cs: `public sealed class PropertyBuilder : PropertyOrIndexerBuilder<PropertyBuilder>`,
+        internal 생성자 `PropertyBuilder(string type, string name)`(type이 null이면 ArgumentNullException `type`, name은
+        `Identifier.ValidateAndEscape(name, nameof(name))`로 검증·이스케이프). `PropertyBuilder Initializer(string expression)`: 초기화
+        식, 마지막 호출이 이김, null이면 ArgumentNullException(`expression`), 그대로 출력. Write는
+        `WriteDeclaration(writer, RenderModifiers() + type + " " + name, initializer)`다.
+      - CSharp.cs: `PropertyBuilder Property(string type, string name)`, `PropertyBuilder Property(string type, string name,
+        Action<PropertyBuilder> configure)`.
+      - TypeDeclarationBuilder<TSelf>: `TSelf Property(string type, string name)`, `TSelf Property(string type, string name,
+        Action<PropertyBuilder> configure)`, `TSelf Add(PropertyBuilder propertyBuilder)`. 기존 Method와 같은 방식(진입점에 위임, Add는
+        인스턴스를 복사하지 않고 `propertyBuilder.Write`를 `items`에 담음)이다. class·struct·interface·record·record struct가 모두
+        물려받는다. 이유: C#은 이 종류 모두에 속성을 허용한다. EnumBuilder, FileBuilder, NamespaceBuilder에는 추가하지 마라. 이유:
+        C#은 enum 본문과 namespace 수준에 속성을 허용하지 않는다(ADR-003: 허용하지 않는 것은 메서드가 없어야 한다).
+
+      출력 규칙:
+      - 접근자 목록 형식: 한 줄 `<머리> { <접근자들> }`, Initializer가 있으면 뒤에 ` = <초기화 식>;`. 접근자는 호출 순서와 무관하게
+        get, 그다음 set 또는 init 순서로 `get;`처럼 쓰고 공백 하나로 구분한다. 접근자를 하나도 지정하지 않았고 Arrow도 없으면
+        `{ get; set; }`이다(람다를 생략했거나 람다가 접근자를 지정하지 않은 경우). 이유: PRD 핵심 기능 3의 자동 속성 기본값이고,
+        접근자 없는 `{ }`는 컴파일되지 않는다.
+      - 식 본문 형식: `<머리> => <식>;`. 이 형식에서는 Initializer를 출력하지 않는다. 이유: C# 문법에 자리가 없고, 렌더링 단계에서는
+        예외를 던지지 않는다(ARCHITECTURE 횡단 관심사). 이 규칙을 Initializer와 Arrow의 XML 문서에 적는다.
+      - 머리는 `<공통 수식어><형식> <이름>`이다. 속성 전용 수식어는 없다.
+      - 예: `CSharp.Property("int", "Count").ToString()` → `int Count { get; set; }\n`.
+        `CSharp.Class("Person", c => c.Public().Property("string", "Name", p => p.Public().Init().Get().Initializer("\"\""))
+        .Property("int", "Age", p => p.Public().Arrow("0")))` →
+        `public class Person\n{\n    public string Name { get; init; } = "";\n\n    public int Age => 0;\n}\n`.
+      - 타입 본문에서는 다른 항목처럼 추가 순서대로 나오고 항목 사이 빈 줄 1개 규칙을 따른다. 속성이 있는 record는 `;` 대신
+        블록이 된다. TypeDeclarationBuilder.Write는 바꾸지 마라.
+
+      구현 규칙:
+      - 기반 클래스의 상태와 훅은 protected가 아니라 internal로 둔다. 이유: protected 멤버는 공개 API 표면(PublicAPI.txt)에 들어가고
+        외부 파생을 허용하게 된다.
+      - 람다를 받는 메서드는 람다 없는 오버로드와 짝으로 두고 선택적 매개변수(`= null`)를 쓰지 마라. 이유: PublicApiAnalyzers
+        RS0026/RS0027 경고가 오류다. 람다는 configure null 검사 뒤 새 빌더로 즉시 한 번 실행하고, 이름이 잘못되면 람다를 실행하지
+        않는다. null 인자는 ArgumentNullException(ParamName은 매개변수 이름).
+      - 들여쓰기·줄바꿈·중괄호는 CodeWriter로만 쓴다. 빌더 코드에 `"\n"`이나 들여쓰기 공백을 쓰지 마라.
+      - MemberBuilder, MethodBuilder, FieldBuilder는 고치지 마라. 이유: 공통 수식어와 기존 멤버의 출력 규칙은 이미 테스트되어 있다.
+
+      문서와 PublicAPI: 모든 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception)를 달고 PropertyOrIndexerBuilder에는
+      `<typeparam name="TSelf">`도 단다. 이유: CS1591과 CS1712가 오류다. 새 공개 타입 remarks에 빌더가 가변이며 스레드 안전하지
+      않다는 점을 적고, PropertyOrIndexerBuilder·PropertyBuilder remarks에는 수식어 조합을 검사하지 않는다는 점, Set/Init 자리 규칙,
+      Arrow와 접근자 사이 마지막 호출 규칙을 적는다. PropertyOrIndexerBuilder의 문서는 속성과 인덱서 모두에 맞는 말로 쓴다. 이유: 스텝
+      s3은 이 파일을 고치지 않고 IndexerBuilder가 그대로 물려받는다. 새 공개 심볼은 RS0016 메시지 문자열 그대로 src/Codrio/PublicAPI.Unshipped.txt에
+      추가한다(예: `Codrio.PropertyOrIndexerBuilder<TSelf>.Get() -> TSelf!`, `override Codrio.AccessorBuilder.ToString() -> string!`).
+      PublicAPI.Shipped.txt는 건드리지 마라. 이유: 0.1.0은 아직 배포 전이다.
+
+      테스트(새 tests/Codrio.Tests/Builders/PropertyBuilderTests.cs), `OutputAssert.Equal`로:
+      - 단독 `CSharp.Property("int", "Count")`가 `int Count { get; set; }\n`, 람다가 접근자를 지정하지 않아도 같은 기본값, 형식 문자열을
+        그대로 출력.
+      - Get만, Get+Set, Get+Init, Set만, Init만, 호출 순서와 무관한 get 우선 순서, Set 뒤 Init과 Init 뒤 Set에서 마지막 호출이 이김,
+        같은 접근자를 여러 번 호출해도 한 번만 나옴.
+      - Initializer와 마지막 호출이 이김, Arrow, Arrow 뒤 Get과 Get 뒤 Arrow의 마지막 호출 규칙, Arrow 형식에서 Initializer가 나오지 않음.
+      - 공통 수식어 7개를 역순으로 호출해도 `public static new virtual abstract sealed override readonly int X { get; set; }`(무효
+        조합이므로 문자열 비교만), 접근 제한자 마지막 호출이 이김.
+      - `new AccessorBuilder("get").ToString()`이 `get;\n`(테스트 프로젝트는 InternalsVisibleTo로 internal 생성자에 접근한다).
+      - `CSharp.Property` 람다 있는/없는 경우(즉시 한 번 실행, 같은 인스턴스), class·struct·interface·record·record struct 각각의
+        `Property`/`Add`, 속성·필드·메서드·중첩 class·Raw가 섞인 항목 순서와 빈 줄, 속성만 있는 record가 블록이 됨, 중첩 class 안 속성
+        들여쓰기, Add 뒤에 바꾼 속성 변경이 출력에 반영됨.
+      - 키워드 이름(`class` → `@class`), 잘못된 이름이 `CSharp.Property`와 타입의 `Property` 호출 시점에 ArgumentException(ParamName
+        `name`)이고 람다가 실행되지 않음, null 인자(`type`, `name`, `configure`, Initializer·Arrow의 `expression`, `propertyBuilder`),
+        모든 체이닝 메서드가 같은 인스턴스를 반환(`Assert.Same`), 리플렉션으로 `typeof(EnumBuilder)`, `typeof(FileBuilder)`,
+        `typeof(NamespaceBuilder)`의 공개 메서드에 `Property`와 PropertyBuilder를 받는 `Add`가 없음.
+      Add의 null 검사는 `Add((PropertyBuilder)null!)`처럼 캐스트한다. 이유: Add 오버로드가 여러 개라 캐스트 없는 `null!`은 CS0121로
+      모호하다.
+      `CompilationAssert.NoErrors`: 헤더·using·블록 namespace 안에 초기화 식 있는 자동 속성·get만 있는 자동 속성·식 본문 속성·키워드
+      이름 속성을 가진 class, abstract 속성과 virtual 속성을 가진 abstract class와 그것을 override하는 sealed class(식 본문 override
+      포함), get만·get과 set 속성을 가진 interface와 그 구현 class, `{ get; init; }` 속성을 가진 record와 record struct, 초기화 식
+      없는 자동 속성과 `readonly` 식 본문 속성을 가진 struct, static 식 본문 속성을 가진 static class를 담은 완결 파일.
+      주의: struct·record struct의 속성에 초기화 식을 쓰면 명시적 생성자가 필요하다(CS8983). interface의 인스턴스 속성에는 초기화
+      식을 쓸 수 없다(CS8053). abstract 속성에는 초기화 식을 쓰지 않는다. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로
+      빌드되는데 그 대상에는 IsExternalInit가 없다. src/Codrio에서도 record·init을 쓰거나 Polyfills를 만들지 마라.
+      하지 마라: 접근자 본문, `Get(Action<AccessorBuilder>)` 같은 람다 오버로드, 여러 줄 블록 형식, CodeWriter 변경(이유: 스텝 s2),
+      인덱서(이유: 스텝 s3), 접근자별 접근 제한자·`required`·`partial` 속성 같은 PRD에 없는 기능(이유: 작업이 제외했다),
+      `CSharp`의 접근자 진입점이나 `Add(AccessorBuilder)`(이유: 접근자는 멤버가 아니고 속성·인덱서 안에서만 만든다),
+      attribute·Doc·System.Type 오버로드(이유: 뒤 작업).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션
+      종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/AccessorBuilder.cs
+      - src/Codrio/Builders/PropertyOrIndexerBuilder.cs
+      - src/Codrio/Builders/PropertyBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/PropertyBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s2-accessor-bodies
+    title: add accessor block and expression bodies with multi-line property rendering
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·4·6), docs/ARCHITECTURE.md("레이어 규칙", "횡단 관심사"), docs/ADR.md(ADR-004·005),
+      src/Codrio/Builders/AccessorBuilder.cs, src/Codrio/Builders/PropertyOrIndexerBuilder.cs, src/Codrio/Builders/PropertyBuilder.cs,
+      src/Codrio/Builders/MethodBuilder.cs(Body·Arrow 패턴과 블록 렌더링), src/Codrio/Builders/BodyBuilder.cs,
+      src/Codrio/Rendering/CodeWriter.cs, src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/PropertyBuilderTests.cs,
+      tests/Codrio.Tests/Rendering/CodeWriterTests.cs.
+
+      접근자에 블록 본문과 식 본문을 붙이고, 그런 접근자가 하나라도 있으면 속성을 여러 줄 블록 형식으로 렌더링한다. 접근자 모델은
+      PropertyOrIndexerBuilder<TSelf>에 두므로 스텝 s3의 인덱서도 그대로 물려받는다.
+
+      공개 API:
+      - AccessorBuilder: `AccessorBuilder Body()`(빈 블록 본문), `AccessorBuilder Body(Action<BodyBuilder> configure)`(새 BodyBuilder로
+        즉시 한 번 실행), `AccessorBuilder Arrow(string expression)`(식 본문, 그대로 출력). 셋은 서로를 대체하며 마지막 호출이 이긴다
+        (Body를 두 번 호출하면 두 번째 본문만 남는다). MethodBuilder.Body/Arrow와 같은 의미와 null 검사(ParamName `configure`,
+        `expression`)다.
+      - PropertyOrIndexerBuilder<TSelf>: `TSelf Get(Action<AccessorBuilder> configure)`, `TSelf Set(Action<AccessorBuilder> configure)`,
+        `TSelf Init(Action<AccessorBuilder> configure)`. configure null 검사 → 해당 keyword의 새 AccessorBuilder → 람다 즉시 한 번 실행 →
+        자리(getter 또는 setter)에 넣고 expression을 지운다. 람다 없는 Get()/Set()/Init()과 같은 자리 규칙(Set·Init 공유, 마지막 호출이
+        이김)이고, 람다 없는 오버로드는 본문 없는 새 접근자로 바꾼다.
+      - CodeWriter(internal): `internal void CloseBlock(string suffix)`: 들여쓰기를 한 단계 줄이고 `}` 바로 뒤에 suffix를 붙인 줄을 쓴다.
+        기존 `CloseBlock()`의 동작은 바꾸지 마라. 이유: 모든 기존 출력이 그것에 의존한다.
+
+      출력 규칙:
+      - AccessorBuilder.Write: 본문 없음은 `get;`, 식 본문은 `get => <식>;`, 블록 본문은 `get` 줄, `{`, 한 단계 들여쓴 본문, `}`(본문은
+        BodyBuilder.Write, 블록은 OpenBlock/CloseBlock). ToString은 이것을 새 CodeWriter에 쓴 결과다.
+      - 속성: 지정된 접근자 중 하나라도 본문이나 식 본문이 있으면 블록 형식이다: `<머리>` 줄, `{`, 접근자들(get 다음 set 또는 init,
+        사이에 빈 줄 없음, 본문 없는 접근자는 `get;` 줄), `}`. Initializer가 있으면 닫는 줄이 `} = <초기화 식>;`이다(CloseBlock(suffix)
+        사용). 이유: C# 14 `field` 키워드를 쓰는 속성은 접근자 본문과 초기화 식을 함께 가질 수 있고, 렌더링이 사용자가 준 정보를 버리지
+        않는다. 모든 접근자가 본문 없음이면 스텝 s1의 한 줄 형식 그대로이고, 선언 전체 Arrow 형식도 그대로다. 블록 형식인지 판단하는
+        internal 멤버는 AccessorBuilder에 둔다.
+      - 예: `CSharp.Property("int", "Count", p => p.Public().Get(a => a.Arrow("count")).Set(a => a.Body(b => b.Line("count = value;"))))`
+        → `public int Count\n{\n    get => count;\n    set\n    {\n        count = value;\n    }\n}\n`.
+        `CSharp.Property("string", "Name", p => p.Public().Get(a => a.Arrow("field")).Set(a => a.Arrow("field = value.Trim()"))
+        .Initializer("\"\""))` → `public string Name\n{\n    get => field;\n    set => field = value.Trim();\n} = "";\n`.
+
+      문서와 PublicAPI: 새 공개 멤버에 영어 XML 문서(summary, param, returns, exception)를 달고, AccessorBuilder 클래스 remarks에 가변·
+      스레드 안전하지 않음·문과 식은 검증 없이 문자열로 출력한다는 점을, PropertyOrIndexerBuilder remarks에 블록 형식이 되는 조건을
+      적는다. 새 공개 심볼은 RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt에 추가한다(예:
+      `Codrio.PropertyOrIndexerBuilder<TSelf>.Get(System.Action<Codrio.AccessorBuilder!>! configure) -> TSelf!`). PublicAPI.Shipped.txt는
+      건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/AccessorBuilderTests.cs: AccessorBuilder는 `CSharp.Property("int", "X", p => p.Get(a => ...))`
+        람다로 얻는다. `OutputAssert.Equal`로 ToString의 본문 없음 `get;\n`, Arrow, Body()의 빈 블록, Body 람다(여러 Line과 중첩 Block),
+        Body·Arrow 사이 마지막 호출, Body 두 번 호출, 여러 줄 Arrow 식과 `\r\n` 정규화, set·init 키워드, 람다 즉시 한 번 실행, null
+        인자(`configure`, `expression`), 체이닝 반환값(`Assert.Same`).
+      - tests/Codrio.Tests/Builders/PropertyBuilderTests.cs에 추가: 블록 형식(get Arrow + set Body, get Body만, init Arrow), 본문 없는
+        접근자와 본문 있는 접근자가 섞이면 블록 안에 `get;` 줄, 호출 순서와 무관한 get 우선, Get(configure) 뒤 Get()이 본문 없는
+        접근자로 바꿈, Set(configure)와 Init(configure)의 자리 공유, 선언 Arrow와 Get(configure) 사이 마지막 호출, 블록 형식 +
+        Initializer의 `} = ...;`, 중첩 class 안 블록 형식 속성과 접근자 본문 Block의 들여쓰기, 람다가 접근자를 바꾸지 않으면(`Get(a => { })`)
+        한 줄 형식 유지, null 인자(`configure`), 체이닝 반환값.
+      - tests/Codrio.Tests/Rendering/CodeWriterTests.cs에 추가: 중첩 블록에서 `CloseBlock(" = 0;")`이 바깥 들여쓰기로 `} = 0;`을 쓰고
+        이어지는 줄의 들여쓰기도 맞음.
+      - `CompilationAssert.NoErrors`: backing field를 쓰는 get Arrow·set Body 속성, if/else Block이 있는 get Body 속성, 빈 `Body()` set을
+        가진 속성, static 속성, override 속성의 get Body, struct의 `readonly` 속성(get Body), 기본 구현이 있는 interface 속성(get Arrow)과
+        그 구현 class를 담은 완결 파일.
+        주의: get 본문은 모든 경로에서 반환해야 한다(CS0161). 본문 없는 접근자와 본문 있는 접근자를 섞은 속성, 접근자 본문이 있는
+        속성의 초기화 식, `field` 키워드를 쓰는 예시는 문자열 비교만 하고 컴파일 검증에 넣지 마라. 이유: C# 14 `field` 기능에 기대는
+        코드라 테스트가 컴파일러의 언어 버전 동작에 묶인다(ADR-005: 언어 버전은 검증하지 않는다).
+      기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로
+      빌드되는데 IsExternalInit가 없다.
+      하지 마라: 접근자별 접근 제한자·`readonly` 접근자(이유: 작업이 PRD에 없는 기능으로 제외했다), 인덱서(이유: 스텝 s3),
+      `CSharp`의 접근자 진입점이나 `Add(AccessorBuilder)`(이유: 접근자는 멤버가 아니라 ParameterBuilder·BodyBuilder처럼 람다로만
+      만든다), 접근자 사이 빈 줄(이유: 접근자는 멤버가 아니라 "멤버 사이 빈 줄 1개" 규칙 대상이 아니다), CodeWriter의 다른 변경.
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션
+      종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/AccessorBuilder.cs
+      - src/Codrio/Builders/PropertyOrIndexerBuilder.cs
+      - src/Codrio/Rendering/CodeWriter.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/AccessorBuilderTests.cs
+      - tests/Codrio.Tests/Builders/PropertyBuilderTests.cs
+      - tests/Codrio.Tests/Rendering/CodeWriterTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s3-indexer-builder
+    title: add IndexerBuilder with parameters and the shared accessor model
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·5·6·7), docs/ADR.md(ADR-003·004·006), src/Codrio/Builders/PropertyOrIndexerBuilder.cs,
+      src/Codrio/Builders/PropertyBuilder.cs, src/Codrio/Builders/AccessorBuilder.cs, src/Codrio/Builders/MethodBuilder.cs(Parameter 패턴),
+      src/Codrio/Builders/ParameterBuilder.cs, src/Codrio/Builders/TypeDeclarationBuilder.cs, src/Codrio/CSharp.cs,
+      src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/PropertyBuilderTests.cs.
+
+      인덱서 선언 빌더를 추가한다. 접근자 모델(Get/Set/Init과 람다 오버로드, 선언 Arrow, 한 줄·블록 형식)은 PropertyOrIndexerBuilder에서
+      그대로 물려받는다. 진입점·Add·문서·PublicAPI·테스트 구성은 PropertyBuilder와 같은 방식이다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/IndexerBuilder.cs: `public sealed class IndexerBuilder : PropertyOrIndexerBuilder<IndexerBuilder>`, internal
+        생성자 `IndexerBuilder(string type)`(null이면 ArgumentNullException `type`). `IndexerBuilder Parameter(string type, string name)`,
+        `IndexerBuilder Parameter(string type, string name, Action<ParameterBuilder> configure)`: MethodBuilder.Parameter와 같은 방식
+        (기존 ParameterBuilder 재사용, 추가 순서, 잘못된 이름이면 람다 미실행). Write는
+        `WriteDeclaration(writer, RenderModifiers() + type + " this[" + <매개변수들을 ", "로 이은 것> + "]", null)`이다.
+      - CSharp.cs: `IndexerBuilder Indexer(string type)`, `IndexerBuilder Indexer(string type, Action<IndexerBuilder> configure)`.
+      - TypeDeclarationBuilder<TSelf>: `TSelf Indexer(string type)`, `TSelf Indexer(string type, Action<IndexerBuilder> configure)`,
+        `TSelf Add(IndexerBuilder indexerBuilder)`. class·struct·interface·record·record struct가 물려받는다. EnumBuilder, FileBuilder,
+        NamespaceBuilder에는 추가하지 마라. 이유: C#이 그 위치에 인덱서를 허용하지 않는다(ADR-003).
+      PropertyOrIndexerBuilder, PropertyBuilder, AccessorBuilder는 고치지 마라. 이유: 접근자 모델은 이미 완성되어 있고 인덱서는 머리만
+      다르다. ParameterBuilder도 고치지 마라.
+
+      출력 규칙:
+      - 머리는 `<공통 수식어><형식> this[<매개변수1>, <매개변수2>]`이고 매개변수 조각은 `ParameterBuilder.RenderParameter()`다. 나머지
+        (기본 `{ get; set; }`, 한 줄·블록·Arrow 형식, 접근자 순서와 자리 규칙)는 속성과 같다.
+      - IndexerBuilder에는 Initializer가 없다. 이유: C#은 인덱서에 초기화 식을 허용하지 않는다(ADR-003: 허용하지 않는 것은 메서드가
+        없어야 한다).
+      - 매개변수 수는 검사하지 않는다. 매개변수 없이 렌더링하면 `this[]`가 나온다. 이유: 렌더링 단계에서는 예외를 던지지 않고, 이런
+        검증은 컴파일러에게 맡긴다(ADR 원칙). 이 점을 클래스 remarks에 적는다.
+      - 예: `CSharp.Indexer("string", i => i.Public().Parameter("int", "index").Get(a => a.Arrow("items[index]"))
+        .Set(a => a.Body(b => b.Line("items[index] = value;"))))` →
+        `public string this[int index]\n{\n    get => items[index];\n    set\n    {\n        items[index] = value;\n    }\n}\n`.
+        `CSharp.Indexer("int", i => i.Parameter("int", "row").Parameter("int", "column").Get()).ToString()` →
+        `int this[int row, int column] { get; }\n`. `CSharp.Indexer("int", i => i.Public().Parameter("int", "i").Arrow("values[i]"))` →
+        `public int this[int i] => values[i];\n`.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception), IndexerBuilder 클래스 remarks(가변, 스레드
+      안전하지 않음, 수식어 조합·매개변수 수 미검사), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목. PublicAPI.Shipped.txt는
+      건드리지 마라.
+
+      테스트(새 tests/Codrio.Tests/Builders/IndexerBuilderTests.cs), `OutputAssert.Equal`로: 단독 `CSharp.Indexer("int")`가
+      `int this[] { get; set; }\n`, 매개변수 1개·여러 개의 순서, ParameterBuilder 수식어(`params`, `in`)와 Default, 키워드 매개변수 이름
+      (`class` → `@class`), 기본 `{ get; set; }`, Get만, Get+Init, 선언 Arrow, 블록 형식(get Arrow + set Body), 공통 수식어 7개 역순
+      호출의 고정 순서(문자열 비교만), `CSharp.Indexer` 람다 있는/없는 경우(즉시 한 번 실행, 같은 인스턴스), class·struct·interface·
+      record·record struct 각각의 `Indexer`/`Add`, 인덱서·속성·메서드·Raw가 섞인 항목 순서와 빈 줄, 인덱서만 있는 record가 블록이 됨,
+      중첩 class 안 블록 형식 인덱서 들여쓰기, Add 뒤에 바꾼 인덱서 변경이 출력에 반영됨, 잘못된 매개변수 이름이 호출 시점에
+      ArgumentException(ParamName `name`)이고 람다 미실행, null 인자(`type`, `name`, `configure`, `indexerBuilder`), 체이닝 반환값
+      (`Assert.Same`), 리플렉션으로 `typeof(IndexerBuilder)`에 `Initializer` 메서드가 없고 `typeof(EnumBuilder)`, `typeof(FileBuilder)`,
+      `typeof(NamespaceBuilder)`의 공개 메서드에 `Indexer`와 IndexerBuilder를 받는 `Add`가 없음. Add의 null 검사는
+      `Add((IndexerBuilder)null!)`처럼 캐스트한다.
+      `CompilationAssert.NoErrors`: 배열 필드를 읽고 쓰는 get Arrow·set Arrow 인덱서와 매개변수 2개짜리 식 본문 인덱서를 가진 class,
+      `params int[]` 매개변수 인덱서, get만 있는 인덱서를 가진 interface와 그 구현 class, abstract 인덱서를 가진 abstract class와
+      override 구현, 식 본문 인덱서를 가진 struct와 record를 담은 완결 파일.
+      주의: class·struct·record의 인덱서는 abstract가 아니면 접근자 본문이나 Arrow가 있어야 한다(본문 없는 `{ get; set; }`는 CS0501).
+      인덱서는 static일 수 없고 매개변수가 하나 이상이어야 한다. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로
+      빌드되는데 IsExternalInit가 없다.
+      하지 마라: 인덱서 이름 지정(`IndexerName` attribute 등, 이유: attribute는 다음 작업), 이벤트·연산자·델리게이트(이유: 스텝
+      s4·s5·s6), 접근자별 접근 제한자(이유: 작업이 제외했다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션
+      종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/IndexerBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/IndexerBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s4-event-builder
+    title: add EventBuilder for field-like events
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·5·6·7), docs/ADR.md(ADR-003·004·006), src/Codrio/Builders/MemberBuilder.cs,
+      src/Codrio/Builders/FieldBuilder.cs(형식·이름을 받는 한 줄 멤버 패턴), src/Codrio/Builders/TypeDeclarationBuilder.cs(Property·
+      Indexer·Add 패턴), src/Codrio/CSharp.cs, src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/FieldBuilderTests.cs.
+
+      필드형 이벤트 선언 빌더를 추가하고 class·struct·interface·record(record struct 포함) 본문에 람다와 Add()로 넣을 수 있게 한다.
+      진입점·Add·문서·PublicAPI·테스트 구성은 FieldBuilder와 PropertyBuilder가 쓰는 방식을 그대로 따른다(람다 있는/없는 오버로드 짝,
+      선택적 매개변수 금지, configure null 검사 뒤 즉시 한 번 실행, null 인자 ArgumentNullException, Add는 인스턴스를 복사하지 않고
+      `Write`를 `items`에 담음, CodeWriter로만 줄 출력).
+
+      공개 API:
+      - 새 src/Codrio/Builders/EventBuilder.cs: `public sealed class EventBuilder : MemberBuilder<EventBuilder>`, internal 생성자
+        `EventBuilder(string type, string name)`(type null이면 ArgumentNullException `type`, name은 `Identifier.ValidateAndEscape(name,
+        nameof(name))`). 이벤트 전용 공개 메서드는 없다.
+      - CSharp.cs: `EventBuilder Event(string type, string name)`, `EventBuilder Event(string type, string name, Action<EventBuilder> configure)`.
+      - TypeDeclarationBuilder<TSelf>: `TSelf Event(string type, string name)`, `TSelf Event(string type, string name,
+        Action<EventBuilder> configure)`, `TSelf Add(EventBuilder eventBuilder)`. EnumBuilder, FileBuilder, NamespaceBuilder에는 추가하지
+        마라. 이유: C#이 그 위치에 이벤트를 허용하지 않는다(ADR-003).
+
+      출력 규칙: 한 줄 `<공통 수식어>event <형식> <이름>;`. 형식은 검증 없이 그대로 출력한다(ADR-004). 타입 본문에서는 추가 순서대로
+      나오고 항목 사이 빈 줄 1개 규칙을 따르며, 이벤트가 있는 record는 블록이 된다.
+      예: `CSharp.Event("System.EventHandler?", "Changed", e => e.Public()).ToString()` → `public event System.EventHandler? Changed;\n`.
+      `CSharp.Interface("INotifier", i => i.Event("System.Action", "Done"))` → `interface INotifier\n{\n    event System.Action Done;\n}\n`.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception), EventBuilder 클래스 remarks(가변, 스레드
+      안전하지 않음, 수식어 조합 미검사, 필드형 이벤트만 만든다), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목.
+      PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트(새 tests/Codrio.Tests/Builders/EventBuilderTests.cs), `OutputAssert.Equal`로: 단독 `CSharp.Event("System.Action", "Done")`이
+      `event System.Action Done;\n`, 형식 문자열을 그대로 출력, 접근 제한자 마지막 호출이 이김, 공통 수식어 7개를 역순으로 호출해도
+      `public static new virtual abstract sealed override readonly event System.Action Done;`(문자열 비교만), 수식어 중복 호출,
+      `CSharp.Event` 람다 있는/없는 경우(즉시 한 번 실행, 같은 인스턴스), class·struct·interface·record·record struct 각각의
+      `Event`/`Add`, 이벤트·속성·메서드·Raw가 섞인 항목 순서와 빈 줄, 이벤트만 있는 record가 블록이 됨, 중첩 class 안 이벤트 들여쓰기,
+      Add 뒤에 바꾼 이벤트 변경이 출력에 반영됨, 키워드 이름(`event` → `@event`), 잘못된 이름이 호출 시점에 ArgumentException(ParamName
+      `name`)이고 람다 미실행, null 인자(`type`, `name`, `configure`, `eventBuilder`), 체이닝 반환값(`Assert.Same`), 리플렉션으로
+      `typeof(EnumBuilder)`, `typeof(FileBuilder)`, `typeof(NamespaceBuilder)`의 공개 메서드에 `Event`와 EventBuilder를 받는 `Add`가 없음.
+      Add의 null 검사는 `Add((EventBuilder)null!)`처럼 캐스트한다.
+      `CompilationAssert.NoErrors`: `#nullable enable` 헤더와 블록 namespace 안에 public 이벤트와 그것을 발생시키는 메서드
+      (`Changed?.Invoke(this, System.EventArgs.Empty);`), static 이벤트를 가진 class, 이벤트를 가진 interface와 그 구현 class, abstract
+      이벤트·virtual 이벤트를 가진 abstract class와 override 이벤트를 가진 파생 class, 이벤트를 가진 struct와 record를 담은 완결 파일.
+      주의: 이벤트 형식은 delegate 형식이어야 한다(CS0066). 사용하지 않는 이벤트의 CS0067은 경고라 괜찮다. 기존 테스트 기대값은
+      바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로
+      빌드되는데 IsExternalInit가 없다.
+      하지 마라: add/remove 접근자와 이벤트 초기화 식(이유: 작업은 형식과 이름을 가진 필드형 이벤트만 요구하고 add/remove를 PRD에 없는
+      기능으로 제외했다), 한 선언의 여러 이벤트(`event Action a, b;`, 이유: 작업 범위에 없다), 연산자·델리게이트(이유: 스텝 s5·s6).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션
+      종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/EventBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/EventBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s5-delegate-builder
+    title: add DelegateBuilder for files, namespaces and type bodies
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 1·3·5·6·7), docs/ADR.md(ADR-003·004·006), src/Codrio/Builders/MemberBuilder.cs,
+      src/Codrio/Builders/MethodBuilder.cs(Returns·Parameter·TypeParameter와 선언 줄·where 절 조립), src/Codrio/Builders/ParameterBuilder.cs,
+      src/Codrio/Builders/TypeParameterBuilder.cs, src/Codrio/Builders/TypeDeclarationBuilder.cs, src/Codrio/Builders/FileBuilder.cs,
+      src/Codrio/Builders/NamespaceBuilder.cs(Class·Add 패턴), src/Codrio/CSharp.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/MethodBuilderTests.cs, tests/Codrio.Tests/Builders/NamespaceBuilderTests.cs.
+
+      delegate 선언 빌더를 추가한다. delegate는 C#에서 타입 선언이므로 class·struct·interface·record(record struct 포함) 본문뿐 아니라
+      File과 Namespace(블록·파일 범위)에도 람다와 Add()로 넣을 수 있다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/DelegateBuilder.cs: `public sealed class DelegateBuilder : MemberBuilder<DelegateBuilder>`, internal 생성자
+        `DelegateBuilder(string name)`(`Identifier.ValidateAndEscape(name, nameof(name))`). MemberBuilder를 기반으로 한다. 이유: PRD 핵심
+        기능 3이 delegate를 멤버 빌더로 분류하고, 다음 작업이 attribute·Doc을 멤버 기반 클래스에 붙인다. 공통 수식어 중 delegate에 맞지
+        않는 것(static 등)은 다른 멤버처럼 조합을 검사하지 않는다.
+        `DelegateBuilder Returns(string type)`(생략 시 `void`, 마지막 호출이 이김), `Parameter(string type, string name)`,
+        `Parameter(string type, string name, Action<ParameterBuilder> configure)`, `TypeParameter(string name)`,
+        `TypeParameter(string name, Action<TypeParameterBuilder> configure)`: MethodBuilder의 같은 메서드와 같은 의미·null 검사·람다
+        실행 규칙이다. 기존 ParameterBuilder·TypeParameterBuilder를 재사용하고 고치지 마라.
+      - CSharp.cs: `DelegateBuilder Delegate(string name)`, `DelegateBuilder Delegate(string name, Action<DelegateBuilder> configure)`.
+      - TypeDeclarationBuilder<TSelf>, FileBuilder, NamespaceBuilder: `Delegate(string name)`, `Delegate(string name,
+        Action<DelegateBuilder> configure)`, `Add(DelegateBuilder delegateBuilder)`. 각자 자기 자신(TypeDeclarationBuilder는 `TSelf`)을
+        반환하고 기존 Class·Add와 같은 방식(진입점에 위임, Add는 `delegateBuilder.Write`를 `items`에 담음)이다. FileBuilder.Write와
+        NamespaceBuilder.Write, TypeDeclarationBuilder.Write는 바꾸지 마라. EnumBuilder에는 추가하지 마라. 이유: C#은 enum 본문에
+        delegate를 허용하지 않는다(ADR-003).
+      MethodBuilder는 고치지 마라. 선언 줄 조립 코드가 MethodBuilder와 겹쳐도 공용 헬퍼나 기반 클래스로 추출하지 마라. 이유: 이미 테스트된
+      MethodBuilder를 바꾸지 않고, 겹치는 양이 몇 줄이다.
+
+      출력 규칙: 한 줄 `<공통 수식어>delegate <반환 형식> <이름>[<T1, T2>](<매개변수1>, <매개변수2>)[ where T1 : ...][ where T2 : ...];`.
+      매개변수가 없어도 `()`를 쓰고, 매개변수 조각은 `ParameterBuilder.RenderParameter()`, where 절은 타입 매개변수 순서대로
+      `TypeParameterBuilder.RenderConstraintClause()`(빈 문자열이면 생략)를 공백 하나 뒤에 붙인다. 호출 순서와 무관하게 이 문법 순서다.
+      File·Namespace·타입 본문에서는 다른 항목처럼 추가 순서대로 나오고 항목 사이 빈 줄 1개 규칙을 따른다.
+      예: `CSharp.Delegate("Converter", d => d.Public().Returns("TOutput").TypeParameter("TInput").TypeParameter("TOutput",
+      t => t.Constraint("class")).Parameter("TInput", "input"))` →
+      `public delegate TOutput Converter<TInput, TOutput>(TInput input) where TOutput : class;\n`.
+      `CSharp.File().Namespace("App", n => n.Delegate("Handler", d => d.Public()).Class("Worker"))` →
+      `namespace App\n{\n    public delegate void Handler();\n\n    class Worker\n    {\n    }\n}\n`.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception), DelegateBuilder 클래스 remarks(가변, 스레드
+      안전하지 않음, 수식어 조합 미검사), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목. PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트(새 tests/Codrio.Tests/Builders/DelegateBuilderTests.cs), `OutputAssert.Equal`로: 단독 `CSharp.Delegate("Handler")`가
+      `delegate void Handler();\n`, Returns와 마지막 호출이 이김, 매개변수 순서와 ref·out·in·params 수식어·Default, 타입 매개변수와 제약이
+      섞인 where 절, 호출 순서와 무관한 출력, 접근 제한자 마지막 호출, 공통 수식어 7개 역순 호출의 고정 순서
+      `public static new virtual abstract sealed override readonly delegate void Handler();`(문자열 비교만), `CSharp.Delegate` 람다
+      있는/없는 경우(즉시 한 번 실행, 같은 인스턴스), FileBuilder·블록 NamespaceBuilder·파일 범위 NamespaceBuilder·class·struct·
+      interface·record·record struct 각각의 `Delegate`/`Add`, delegate·class·Raw가 섞인 항목 순서와 빈 줄, delegate만 있는 record가 블록이
+      됨, 중첩 class 안 delegate 들여쓰기, Add 뒤에 바꾼 delegate 변경이 출력에 반영됨, 키워드 이름(`delegate` → `@delegate`)과 키워드
+      매개변수·타입 매개변수 이름, 잘못된 이름(delegate, 매개변수, 타입 매개변수)이 호출 시점에 ArgumentException(ParamName `name`)이고
+      람다 미실행, null 인자(`name`, `configure`, `type`, `delegateBuilder`), 체이닝 반환값(`Assert.Same`), 리플렉션으로
+      `typeof(EnumBuilder)`의 공개 메서드에 `Delegate`와 DelegateBuilder를 받는 `Add`가 없음. Add의 null 검사는
+      `Add((DelegateBuilder)null!)`처럼 캐스트한다.
+      `CompilationAssert.NoErrors` 두 개:
+      (1) 헤더와 using 뒤에 namespace 없는 최상위 `public delegate void Notify(string message);`, 블록 namespace 안에 제약 있는 제네릭
+      delegate, `bool TryParse(string text, out int value)` 형태 delegate, `params object[]`·`ref`·`in` 매개변수 delegate, 중첩 private
+      delegate를 쓰는 class(필드 형식으로 사용), 중첩 delegate를 가진 interface와 struct를 담은 완결 파일.
+      (2) 같은 namespace 내용을 파일 범위 namespace로 만든 완결 파일.
+      주의: 파일 범위 namespace는 파일의 다른 멤버보다 앞에 있어야 하므로(CS8956) (2)에는 최상위 delegate를 넣지 않는다. `params`
+      매개변수는 마지막이어야 한다. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로
+      빌드되는데 IsExternalInit가 없다.
+      하지 마라: 타입 매개변수 variance(`in`/`out`) API와 `unsafe` 같은 다른 수식어(이유: 작업 범위에 없다), `CSharp`의
+      Parameter·TypeParameter 진입점(이유: 매개변수는 람다로만 만든다), 연산자(이유: 스텝 s6), attribute·Doc·System.Type
+      오버로드(이유: 뒤 작업).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션
+      종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/DelegateBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/Builders/FileBuilder.cs
+      - src/Codrio/Builders/NamespaceBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/DelegateBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s6-operator-builder
+    title: add OperatorBuilder for operators and conversion operators
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·4·5·6·7, 공통 완료 기준), docs/ARCHITECTURE.md("횡단 관심사"), docs/ADR.md(ADR-003·004·006),
+      src/Codrio/Builders/MemberBuilder.cs, src/Codrio/Builders/MethodBuilder.cs(Parameter·Body·Arrow와 본문 렌더링),
+      src/Codrio/Builders/ConstructorBuilder.cs(MethodBuilder 패턴을 복제한 예), src/Codrio/Builders/BodyBuilder.cs,
+      src/Codrio/Builders/TypeDeclarationBuilder.cs, src/Codrio/CSharp.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/MethodBuilderTests.cs, tests/Codrio.Tests/Builders/MemberCompositionTests.cs.
+
+      연산자 선언 빌더(일반 연산자와 implicit·explicit 변환 연산자)를 추가해 class·struct·interface·record(record struct 포함) 본문에
+      넣을 수 있게 하고, 이 계획의 모든 멤버를 한 파일에 조합하는 통합 테스트로 마무리한다. 진입점·Add·문서·PublicAPI·테스트 구성은 앞
+      스텝의 멤버 빌더와 같은 방식이다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/OperatorBuilder.cs: `public sealed class OperatorBuilder : MemberBuilder<OperatorBuilder>`, internal 생성자
+        `OperatorBuilder(string head)`. head는 수식어와 매개변수 목록 사이의 선언 문자열(`Money operator +`, `implicit operator decimal`)이고
+        CSharp 진입점이 null 검사 뒤 만든다. `Parameter(string type, string name)`, `Parameter(string type, string name,
+        Action<ParameterBuilder> configure)`, `Body()`, `Body(Action<BodyBuilder> configure)`, `Arrow(string expression)`: MethodBuilder의
+        같은 메서드와 같은 의미다(매개변수는 추가 순서, Body·Arrow는 서로 대체하며 마지막 호출이 이김).
+      - CSharp.cs: `OperatorBuilder Operator(string returnType, string symbol)`, `OperatorBuilder Operator(string returnType, string symbol,
+        Action<OperatorBuilder> configure)`, `OperatorBuilder ImplicitOperator(string type)`, `OperatorBuilder ImplicitOperator(string type,
+        Action<OperatorBuilder> configure)`, `OperatorBuilder ExplicitOperator(string type)`, `OperatorBuilder ExplicitOperator(string type,
+        Action<OperatorBuilder> configure)`. null이면 ArgumentNullException(ParamName `returnType`, `symbol`, `type`, `configure`).
+      - TypeDeclarationBuilder<TSelf>: 위 6개와 같은 시그니처로 `TSelf`를 반환하는 메서드(진입점에 위임)와 `TSelf Add(OperatorBuilder
+        operatorBuilder)`. EnumBuilder, FileBuilder, NamespaceBuilder에는 추가하지 마라. 이유: C#이 그 위치에 연산자를 허용하지 않는다
+        (ADR-003).
+
+      출력 규칙:
+      - 선언 줄은 `<공통 수식어><head>(<매개변수1>, <매개변수2>)`이다. 일반 연산자의 head는 `<반환 형식> operator <기호>`, 변환 연산자는
+        `implicit operator <형식>` 또는 `explicit operator <형식>`이다. 본문은 MethodBuilder와 같다: 없으면 끝에 `;`, Arrow면
+        ` => <식>;`, Body면 선언 줄, `{`, 한 단계 들여쓴 본문, `}`.
+      - 연산자 기호와 형식은 검증 없이 그대로 출력한다(`+`, `==`, `true`, `checked +` 등). 이유: 오버로드 가능한 연산자와 매개변수 수
+        규칙은 언어 버전마다 다르고 컴파일러가 잡는다(ADR 원칙, ADR-004·005).
+      - static을 자동으로 붙이지 않는다. 사용자가 지정한 수식어만 출력한다. 이유: 수식어는 호출한 것만 출력하는 기존 규칙이고, interface의
+        `static abstract`·`static virtual` 연산자도 같은 방식으로 만든다.
+      - 예: `CSharp.Operator("Money", "+", o => o.Public().Static().Parameter("Money", "left").Parameter("Money", "right")
+        .Arrow("new Money(left.Amount + right.Amount)"))` →
+        `public static Money operator +(Money left, Money right) => new Money(left.Amount + right.Amount);\n`.
+        `CSharp.ImplicitOperator("decimal", o => o.Public().Static().Parameter("Money", "value").Arrow("value.Amount"))` →
+        `public static implicit operator decimal(Money value) => value.Amount;\n`.
+        `CSharp.Operator("TSelf", "+", o => o.Static().Abstract().Parameter("TSelf", "left").Parameter("TSelf", "right"))` →
+        `static abstract TSelf operator +(TSelf left, TSelf right);\n`.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception), OperatorBuilder 클래스 remarks(가변, 스레드
+      안전하지 않음, 수식어 조합·기호·매개변수 수 미검사, static 자동 추가 없음), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목.
+      PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/OperatorBuilderTests.cs, `OutputAssert.Equal`로: 단독 `CSharp.Operator("int", "+")`가
+        `int operator +();\n`, 위 예시들, explicit 변환 연산자, 기호 문자열을 그대로 출력(Theory: `==`, `!`, `true`, `checked +`), 매개변수
+        순서와 ParameterBuilder 수식어(`in`), Body()·Body 람다·Arrow·본문 없음, Body·Arrow 사이 마지막 호출, 공통 수식어 7개 역순 호출의
+        고정 순서(문자열 비교만), 접근 제한자 마지막 호출, `CSharp.Operator`·`ImplicitOperator`·`ExplicitOperator` 람다 있는/없는 경우
+        (즉시 한 번 실행, 같은 인스턴스), class·struct·interface·record·record struct 각각의 세 진입점과 `Add`, 연산자·속성·메서드·Raw가
+        섞인 항목 순서와 빈 줄, 연산자만 있는 record가 블록이 됨, 중첩 class 안 Body 연산자 들여쓰기, Add 뒤에 바꾼 연산자 변경이 출력에
+        반영됨, 잘못된 매개변수 이름이 호출 시점에 ArgumentException(ParamName `name`)이고 람다 미실행, null 인자(`returnType`, `symbol`,
+        `type`, `configure`, `expression`, `name`, `operatorBuilder`), 체이닝 반환값(`Assert.Same`), 리플렉션으로 `typeof(EnumBuilder)`,
+        `typeof(FileBuilder)`, `typeof(NamespaceBuilder)`의 공개 메서드에 `Operator`·`ImplicitOperator`·`ExplicitOperator`와
+        OperatorBuilder를 받는 `Add`가 없음. Add의 null 검사는 `Add((OperatorBuilder)null!)`처럼 캐스트한다.
+        `CompilationAssert.NoErrors`: 이항 `+`(Arrow), 단항 `-`, `==`와 `!=`(Body), implicit·explicit 변환을 가진 struct와 class, `static
+        abstract` 연산자를 가진 `interface IAddable<TSelf> where TSelf : IAddable<TSelf>`와 그것을 구현하는 struct를 담은 완결 파일.
+      - tests/Codrio.Tests/Builders/MemberCompositionTests.cs에 테스트 2개를 추가한다(기존 2개 테스트와 기대값은 바꾸지 마라):
+        헤더·using·블록 namespace 안에 namespace 수준 delegate, get만 있는 속성·get만 있는 인덱서·이벤트를 가진 interface, `static abstract`
+        연산자를 가진 제네릭 interface, 앞의 비제네릭 interface를 구현하며 backing field, 초기화 식 있는 자동 속성, 접근자 본문이 있는 블록 형식 속성,
+        식 본문 속성, 인덱서, 이벤트와 그것을 발생시키는 메서드, 중첩 delegate를 가진 sealed class, 이항·단항·`==`/`!=`·implicit·explicit
+        연산자와 `readonly` 속성을 가진 struct(제네릭 interface 구현), `{ get; init; }` 속성과 이벤트를 가진 record를 두고, 멤버를 람다와
+        `CSharp.Property/Indexer/Event/Operator/ImplicitOperator/ExplicitOperator/Delegate` + `Add()` 두 방식으로 섞은 완결 파일 하나의 기대
+        문자열 정확 일치와 `CompilationAssert.NoErrors`. 그리고 같은 namespace 내용을 파일 범위 namespace로 만든 파일의
+        `CompilationAssert.NoErrors`. 참조는 모두 같은 파일이나 BCL로 해석되게 한다(PRD 공통 완료 기준).
+      주의: class·struct의 연산자는 `public static`이어야 한다(CS0558). 이항 연산자의 매개변수 하나는 담는 타입이어야 하고(CS0563),
+      변환 연산자는 매개변수 하나로 담는 타입과 다른 형식 사이를 변환해야 한다(CS0556). `==`는 `!=`와 짝이어야 한다(CS0216). record는
+      `==`/`!=`를 합성하므로 record에 그 연산자를 선언하지 않는다(CS0111). interface의 `static abstract` 연산자는 자기 제약 타입 매개변수가
+      필요하다. Equals·GetHashCode를 override하지 않아 생기는 CS0660·CS0661은 경고라 괜찮다. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로
+      빌드되는데 IsExternalInit가 없다.
+      하지 마라: 연산자 기호 검증이나 허용 목록(이유: 컴파일러가 잡는다), static 자동 추가(이유: 위 출력 규칙), OperatorBuilder의
+      Returns·이름 상태(이유: 반환 형식과 기호는 진입점에서 받는다), 변환 연산자용 별도 빌더 클래스(이유: 선언 머리만 달라 하나의
+      OperatorBuilder로 충분하다), attribute·Doc·System.Type 오버로드(이유: 뒤 작업).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션
+      종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/OperatorBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/OperatorBuilderTests.cs
+      - tests/Codrio.Tests/Builders/MemberCompositionTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
