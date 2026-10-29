@@ -121,6 +121,36 @@ public sealed class FileBuilder
         return this;
     }
 
+    /// <summary>Adds an empty top-level struct declaration.</summary>
+    /// <param name="name">The struct identifier. Reserved keywords are escaped.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder Struct(string name) => Add(CSharp.Struct(name));
+
+    /// <summary>Immediately configures a new struct builder and adds it as a top-level declaration.</summary>
+    /// <param name="name">The struct identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder Struct(string name, Action<StructBuilder> configure) => Add(CSharp.Struct(name, configure));
+
+    /// <summary>Adds the supplied struct builder by reference without copying it.</summary>
+    /// <param name="structBuilder">The struct builder to add.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="structBuilder"/> is null.</exception>
+    public FileBuilder Add(StructBuilder structBuilder)
+    {
+        if (structBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(structBuilder));
+        }
+
+        items.Add(structBuilder.Write);
+        return this;
+    }
+
     /// <summary>Adds unvalidated source text, normalizing CRLF line endings to LF.</summary>
     /// <param name="code">The source text to write as one or more lines.</param>
     /// <returns>This file builder.</returns>

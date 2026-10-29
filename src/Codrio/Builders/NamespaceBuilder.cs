@@ -4,7 +4,7 @@ using Codrio.Rendering;
 
 namespace Codrio;
 
-/// <summary>Builds a block or file-scoped namespace containing class declarations.</summary>
+/// <summary>Builds a block or file-scoped namespace containing type declarations.</summary>
 /// <remarks>Builders are mutable and are not thread-safe.</remarks>
 public sealed class NamespaceBuilder
 {
@@ -50,6 +50,36 @@ public sealed class NamespaceBuilder
         }
 
         items.Add(classBuilder.Write);
+        return this;
+    }
+
+    /// <summary>Adds an empty struct declaration.</summary>
+    /// <param name="name">The struct identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Struct(string name) => Add(CSharp.Struct(name));
+
+    /// <summary>Immediately configures a new struct builder and adds it to the namespace.</summary>
+    /// <param name="name">The struct identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Struct(string name, Action<StructBuilder> configure) => Add(CSharp.Struct(name, configure));
+
+    /// <summary>Adds the supplied struct builder by reference without copying it.</summary>
+    /// <param name="structBuilder">The struct builder to add.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="structBuilder"/> is null.</exception>
+    public NamespaceBuilder Add(StructBuilder structBuilder)
+    {
+        if (structBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(structBuilder));
+        }
+
+        items.Add(structBuilder.Write);
         return this;
     }
 

@@ -172,7 +172,7 @@ public class NamespaceBuilderTests
         Assert.Throws<ArgumentNullException>("name", () => builder.Class(null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Class(null!, _ => { }));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Class("C", null!));
-        Assert.Throws<ArgumentNullException>("classBuilder", () => builder.Add(null!));
+        Assert.Throws<ArgumentNullException>("classBuilder", () => builder.Add((ClassBuilder)null!));
         OutputAssert.Equal("namespace A\n{\n}\n", builder.ToString());
     }
 }

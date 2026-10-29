@@ -140,6 +140,36 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds an empty nested struct declaration.</summary>
+    /// <param name="name">The struct identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Struct(string name) => Add(CSharp.Struct(name));
+
+    /// <summary>Immediately configures a new struct builder and adds it as a nested declaration.</summary>
+    /// <param name="name">The struct identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Struct(string name, Action<StructBuilder> configure) => Add(CSharp.Struct(name, configure));
+
+    /// <summary>Adds the supplied struct builder by reference without copying it.</summary>
+    /// <param name="structBuilder">The struct builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="structBuilder"/> is null.</exception>
+    public TSelf Add(StructBuilder structBuilder)
+    {
+        if (structBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(structBuilder));
+        }
+
+        items.Add(structBuilder.Write);
+        return (TSelf)this;
+    }
+
     /// <summary>Adds unvalidated source text, normalizing CRLF line endings to LF.</summary>
     /// <param name="code">The source text to write as one or more lines.</param>
     /// <returns>This type builder.</returns>
