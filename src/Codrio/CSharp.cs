@@ -122,4 +122,29 @@ public static class CSharp
         configure(builder);
         return builder;
     }
+
+    /// <summary>Creates an empty interface declaration.</summary>
+    /// <param name="name">The interface identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new interface builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static InterfaceBuilder Interface(string name) => new(name);
+
+    /// <summary>Creates an interface builder and configures it immediately.</summary>
+    /// <param name="name">The interface identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured interface builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static InterfaceBuilder Interface(string name, Action<InterfaceBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Interface(name);
+        configure(builder);
+        return builder;
+    }
 }

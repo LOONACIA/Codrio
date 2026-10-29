@@ -151,6 +151,36 @@ public sealed class FileBuilder
         return this;
     }
 
+    /// <summary>Adds an empty top-level interface declaration.</summary>
+    /// <param name="name">The interface identifier. Reserved keywords are escaped.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder Interface(string name) => Add(CSharp.Interface(name));
+
+    /// <summary>Immediately configures a new interface builder and adds it as a top-level declaration.</summary>
+    /// <param name="name">The interface identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder Interface(string name, Action<InterfaceBuilder> configure) => Add(CSharp.Interface(name, configure));
+
+    /// <summary>Adds the supplied interface builder by reference without copying it.</summary>
+    /// <param name="interfaceBuilder">The interface builder to add.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="interfaceBuilder"/> is null.</exception>
+    public FileBuilder Add(InterfaceBuilder interfaceBuilder)
+    {
+        if (interfaceBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(interfaceBuilder));
+        }
+
+        items.Add(interfaceBuilder.Write);
+        return this;
+    }
+
     /// <summary>Adds unvalidated source text, normalizing CRLF line endings to LF.</summary>
     /// <param name="code">The source text to write as one or more lines.</param>
     /// <returns>This file builder.</returns>
