@@ -52,6 +52,33 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates a field-like event declaration.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new event builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static EventBuilder Event(string type, string name) => new(type, name);
+
+    /// <summary>Creates a field-like event builder and configures it immediately.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured event builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static EventBuilder Event(string type, string name, Action<EventBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Event(type, name);
+        configure(builder);
+        return builder;
+    }
+
     /// <summary>Creates a property declaration with get and set accessors.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <param name="name">The property identifier. Reserved keywords are escaped.</param>

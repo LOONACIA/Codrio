@@ -110,6 +110,38 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds a field-like event declaration.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Event(string type, string name) => Add(CSharp.Event(type, name));
+
+    /// <summary>Immediately configures a new field-like event builder and adds it to the declaration.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Event(string type, string name, Action<EventBuilder> configure) => Add(CSharp.Event(type, name, configure));
+
+    /// <summary>Adds the supplied event builder by reference without copying it.</summary>
+    /// <param name="eventBuilder">The event builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="eventBuilder"/> is null.</exception>
+    public TSelf Add(EventBuilder eventBuilder)
+    {
+        if (eventBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(eventBuilder));
+        }
+
+        items.Add(eventBuilder.Write);
+        return (TSelf)this;
+    }
+
     /// <summary>Adds a property declaration with get and set accessors.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <param name="name">The property identifier. Reserved keywords are escaped.</param>

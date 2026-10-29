@@ -27,6 +27,7 @@ Codrio.EnumBuilder
 Codrio.EnumBuilder.Member(string! name) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, string! value) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.UnderlyingType(string! type) -> Codrio.EnumBuilder!
+Codrio.EventBuilder
 Codrio.FieldBuilder
 Codrio.FieldBuilder.Const() -> Codrio.FieldBuilder!
 Codrio.FieldBuilder.Initializer(string! expression) -> Codrio.FieldBuilder!
@@ -134,6 +135,7 @@ Codrio.TypeDeclarationBuilder<TSelf>
 Codrio.TypeDeclarationBuilder<TSelf>.Abstract() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.ClassBuilder! classBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.EnumBuilder! enumBuilder) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.EventBuilder! eventBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.IndexerBuilder! indexerBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.InterfaceBuilder! interfaceBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.MethodBuilder! methodBuilder) -> TSelf!
@@ -145,6 +147,8 @@ Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Enum(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Enum(string! name, System.Action<Codrio.EnumBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Event(string! type, string! name) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Event(string! type, string! name, System.Action<Codrio.EventBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Indexer(string! type) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Indexer(string! type, System.Action<Codrio.IndexerBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Interface(string! name) -> TSelf!
@@ -183,6 +187,8 @@ static Codrio.CSharp.Constructor() -> Codrio.ConstructorBuilder!
 static Codrio.CSharp.Constructor(System.Action<Codrio.ConstructorBuilder!>! configure) -> Codrio.ConstructorBuilder!
 static Codrio.CSharp.Enum(string! name) -> Codrio.EnumBuilder!
 static Codrio.CSharp.Enum(string! name, System.Action<Codrio.EnumBuilder!>! configure) -> Codrio.EnumBuilder!
+static Codrio.CSharp.Event(string! type, string! name) -> Codrio.EventBuilder!
+static Codrio.CSharp.Event(string! type, string! name, System.Action<Codrio.EventBuilder!>! configure) -> Codrio.EventBuilder!
 static Codrio.CSharp.Field(string! type, string! name) -> Codrio.FieldBuilder!
 static Codrio.CSharp.Field(string! type, string! name, System.Action<Codrio.FieldBuilder!>! configure) -> Codrio.FieldBuilder!
 static Codrio.CSharp.File() -> Codrio.FileBuilder!
