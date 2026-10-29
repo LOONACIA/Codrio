@@ -202,6 +202,36 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds a delegate declaration with a void return type and no parameters.</summary>
+    /// <param name="name">The delegate identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Delegate(string name) => Add(CSharp.Delegate(name));
+
+    /// <summary>Immediately configures a new delegate builder and adds it to the declaration.</summary>
+    /// <param name="name">The delegate identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Delegate(string name, Action<DelegateBuilder> configure) => Add(CSharp.Delegate(name, configure));
+
+    /// <summary>Adds the supplied delegate builder by reference without copying it.</summary>
+    /// <param name="delegateBuilder">The delegate builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="delegateBuilder"/> is null.</exception>
+    public TSelf Add(DelegateBuilder delegateBuilder)
+    {
+        if (delegateBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(delegateBuilder));
+        }
+
+        items.Add(delegateBuilder.Write);
+        return (TSelf)this;
+    }
+
     /// <summary>Adds a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
     /// <returns>This type builder.</returns>

@@ -129,6 +129,31 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates a delegate declaration with a void return type and no parameters.</summary>
+    /// <param name="name">The delegate identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new delegate builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static DelegateBuilder Delegate(string name) => new(name);
+
+    /// <summary>Creates a delegate builder and configures it immediately.</summary>
+    /// <param name="name">The delegate identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured delegate builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static DelegateBuilder Delegate(string name, Action<DelegateBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Delegate(name);
+        configure(builder);
+        return builder;
+    }
+
     /// <summary>Creates a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
     /// <returns>A new method builder.</returns>

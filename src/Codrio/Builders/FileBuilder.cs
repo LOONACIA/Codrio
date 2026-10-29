@@ -91,6 +91,36 @@ public sealed class FileBuilder
         return this;
     }
 
+    /// <summary>Adds a delegate declaration with a void return type and no parameters.</summary>
+    /// <param name="name">The delegate identifier. Reserved keywords are escaped.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder Delegate(string name) => Add(CSharp.Delegate(name));
+
+    /// <summary>Immediately configures a new delegate builder and adds it to the file.</summary>
+    /// <param name="name">The delegate identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder Delegate(string name, Action<DelegateBuilder> configure) => Add(CSharp.Delegate(name, configure));
+
+    /// <summary>Adds the supplied delegate builder by reference without copying it.</summary>
+    /// <param name="delegateBuilder">The delegate builder to add.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="delegateBuilder"/> is null.</exception>
+    public FileBuilder Add(DelegateBuilder delegateBuilder)
+    {
+        if (delegateBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(delegateBuilder));
+        }
+
+        items.Add(delegateBuilder.Write);
+        return this;
+    }
+
     /// <summary>Adds an empty top-level class declaration.</summary>
     /// <param name="name">The class identifier. Reserved keywords are escaped.</param>
     /// <returns>This file builder.</returns>
