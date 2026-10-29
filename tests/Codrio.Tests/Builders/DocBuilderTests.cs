@@ -290,6 +290,183 @@ public class DocBuilderTests
         CompilationAssert.NoErrors(source);
     }
 
+    [Fact]
+    public void MemberDocumentation_PrecedesAttributesAndStandaloneDeclarations()
+    {
+        OutputAssert.Equal("/// <summary>Runs the job.</summary>\n/// <param name=\"count\">The number of runs.</param>\n/// <returns>The result.</returns>\n[Obsolete]\npublic int Run(int count) => count;\n",
+            CSharp.Method("Run", m => m.Public().Returns("int").Parameter("int", "count").Attribute("Obsolete")
+                .Doc(d => d.Summary("Runs the job.").Param("count", "The number of runs.").Returns("The result.")).Arrow("count")).ToString());
+        OutputAssert.Equal("/// <summary>Field.</summary>\n[NonSerialized]\nprivate int count;\n",
+            CSharp.Field("int", "count", f => f.Private().Attribute("NonSerialized").Doc(d => d.Summary("Field."))).ToString());
+        OutputAssert.Equal("/// <summary>Constructor.</summary>\n[Obsolete]\npublic ()\n{\n    count = 1;\n}\n",
+            CSharp.Constructor(k => k.Public().Attribute("Obsolete").Doc(d => d.Summary("Constructor."))
+                .Body(b => b.Line("count = 1;"))).ToString());
+        OutputAssert.Equal("/// <summary>Property.</summary>\n[Obsolete]\npublic int Count { get; set; }\n",
+            CSharp.Property("int", "Count", p => p.Public().Attribute("Obsolete").Doc(d => d.Summary("Property."))).ToString());
+        OutputAssert.Equal("/// <summary>Indexer.</summary>\n[Obsolete]\npublic int this[int index] => index;\n",
+            CSharp.Indexer("int", x => x.Public().Parameter("int", "index").Attribute("Obsolete")
+                .Doc(d => d.Summary("Indexer.")).Arrow("index")).ToString());
+        OutputAssert.Equal("/// <summary>Event.</summary>\n[Obsolete]\npublic event Action Changed;\n",
+            CSharp.Event("Action", "Changed", e => e.Public().Attribute("Obsolete").Doc(d => d.Summary("Event."))).ToString());
+        OutputAssert.Equal("/// <summary>Delegate.</summary>\n[Obsolete]\npublic delegate void Handler();\n",
+            CSharp.Delegate("Handler", d => d.Public().Attribute("Obsolete").Doc(doc => doc.Summary("Delegate."))).ToString());
+        OutputAssert.Equal("/// <summary>Operator.</summary>\n[Obsolete]\npublic static Value operator +(Value value) => value;\n",
+            CSharp.Operator("Value", "+", o => o.Public().Static().Parameter("Value", "value").Attribute("Obsolete")
+                .Doc(d => d.Summary("Operator.")).Arrow("value")).ToString());
+    }
+
+    [Fact]
+    public void MemberDocumentation_PrecedesBlockBodies()
+    {
+        OutputAssert.Equal("/// <summary>Method.</summary>\n[Obsolete]\nvoid Run()\n{\n    RunAgain();\n}\n",
+            CSharp.Method("Run", m => m.Doc(d => d.Summary("Method.")).Attribute("Obsolete")
+                .Body(b => b.Line("RunAgain();"))).ToString());
+        OutputAssert.Equal("/// <summary>Property.</summary>\n[Obsolete]\nint Count\n{\n    get\n    {\n        return count;\n    }\n    set\n    {\n        count = value;\n    }\n}\n",
+            CSharp.Property("int", "Count", p => p.Doc(d => d.Summary("Property.")).Attribute("Obsolete")
+                .Get(a => a.Body(b => b.Line("return count;")))
+                .Set(a => a.Body(b => b.Line("count = value;")))).ToString());
+    }
+
+    [Fact]
+    public void MemberDocumentation_PreservesSpacingAndNestedIndentation()
+    {
+        var builder = CSharp.Class("Outer", c => c
+            .Field("int", "count", f => f.Doc(d => d.Summary("Count.")))
+            .Method("Run", m => m.Doc(d => d.Summary("Run.")).Body())
+            .Class("Inner", i => i.Property("int", "Value", p => p.Attribute("Obsolete")
+                .Doc(d => d.Summary("First.\r\n\nThird.")))));
+
+        OutputAssert.Equal("class Outer\n{\n    /// <summary>Count.</summary>\n    int count;\n\n"
+            + "    /// <summary>Run.</summary>\n    void Run()\n    {\n    }\n\n"
+            + "    class Inner\n    {\n        /// <summary>First.\n        ///\n        /// Third.</summary>\n"
+            + "        [Obsolete]\n        int Value { get; set; }\n    }\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void FileAndBlockNamespace_IndentDelegateDocumentation()
+    {
+        var file = CSharp.File().Delegate("Top", d => d.Attribute("Obsolete").Doc(doc => doc.Summary("Top.")))
+            .Namespace("App", n => n.Delegate("Nested", d => d.Doc(doc => doc.Summary("Nested.")).Attribute("Obsolete")));
+
+        OutputAssert.Equal("/// <summary>Top.</summary>\n[Obsolete]\ndelegate void Top();\n\nnamespace App\n{\n"
+            + "    /// <summary>Nested.</summary>\n    [Obsolete]\n    delegate void Nested();\n}\n", file.ToString());
+    }
+
+    [Fact]
+    public void AddedMembers_ReflectDocumentationChangesAfterAdd()
+    {
+        var method = CSharp.Method("Run").Doc(d => d.Summary("Before."));
+        var field = CSharp.Field("int", "value").Doc(d => d.Summary("Before."));
+        var constructor = CSharp.Constructor().Doc(d => d.Summary("Before."));
+        var property = CSharp.Property("int", "Value").Doc(d => d.Summary("Before."));
+        var indexer = CSharp.Indexer("int").Parameter("int", "index").Get().Doc(d => d.Summary("Before."));
+        var eventBuilder = CSharp.Event("Action", "Changed").Doc(d => d.Summary("Before."));
+        var delegateBuilder = CSharp.Delegate("Handler").Doc(d => d.Summary("Before."));
+        var operatorBuilder = CSharp.Operator("Service", "+").Parameter("Service", "value").Doc(d => d.Summary("Before."));
+        var builder = CSharp.Class("Service").Add(method).Add(field).Add(constructor).Add(property)
+            .Add(indexer).Add(eventBuilder).Add(delegateBuilder).Add(operatorBuilder);
+        var file = CSharp.File().Add(delegateBuilder);
+        var ns = CSharp.Namespace("App").Add(delegateBuilder);
+
+        const string expected = "class Service\n{\n"
+            + "    /// <summary>Before.</summary>\n    void Run();\n\n"
+            + "    /// <summary>Before.</summary>\n    int value;\n\n"
+            + "    /// <summary>Before.</summary>\n    Service()\n    {\n    }\n\n"
+            + "    /// <summary>Before.</summary>\n    int Value { get; set; }\n\n"
+            + "    /// <summary>Before.</summary>\n    int this[int index] { get; }\n\n"
+            + "    /// <summary>Before.</summary>\n    event Action Changed;\n\n"
+            + "    /// <summary>Before.</summary>\n    delegate void Handler();\n\n"
+            + "    /// <summary>Before.</summary>\n    Service operator +(Service value);\n}\n";
+        OutputAssert.Equal(expected, builder.ToString());
+
+        method.Doc(d => d.Summary("After."));
+        field.Doc(d => d.Summary("After."));
+        constructor.Doc(d => d.Summary("After."));
+        property.Doc(d => d.Summary("After."));
+        indexer.Doc(d => d.Summary("After."));
+        eventBuilder.Doc(d => d.Summary("After."));
+        delegateBuilder.Doc(d => d.Summary("After."));
+        operatorBuilder.Doc(d => d.Summary("After."));
+
+        OutputAssert.Equal(expected.Replace("Before.", "After."), builder.ToString());
+        OutputAssert.Equal("/// <summary>After.</summary>\ndelegate void Handler();\n", file.ToString());
+        OutputAssert.Equal("namespace App\n{\n    /// <summary>After.</summary>\n    delegate void Handler();\n}\n", ns.ToString());
+    }
+
+    [Fact]
+    public void MemberDoc_InvokesConfigureImmediatelyAndOnlyOnce()
+    {
+        var calls = 0;
+        DocBuilder? captured = null;
+        var builder = CSharp.Method("Run").Doc(d =>
+        {
+            calls++;
+            captured = d.Summary("Run.");
+        });
+
+        Assert.Equal(1, calls);
+        Assert.NotNull(captured);
+        OutputAssert.Equal("/// <summary>Run.</summary>\n", captured.ToString());
+        OutputAssert.Equal("/// <summary>Run.</summary>\nvoid Run();\n", builder.ToString());
+        OutputAssert.Equal("/// <summary>Run.</summary>\nvoid Run();\n", builder.ToString());
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void MemberDoc_ReplacesDocumentationWithANewBuilderAndCanClearIt()
+    {
+        DocBuilder? first = null;
+        DocBuilder? second = null;
+        var builder = CSharp.Method("Run").Attribute("Obsolete")
+            .Doc(d => first = d.Summary("First.")).Doc(d => second = d.Summary("Last."));
+
+        Assert.NotSame(first, second);
+        OutputAssert.Equal("/// <summary>Last.</summary>\n[Obsolete]\nvoid Run();\n", builder.ToString());
+        builder.Doc(_ => { });
+        OutputAssert.Equal("[Obsolete]\nvoid Run();\n", builder.ToString());
+        OutputAssert.Equal("void Run();\n", CSharp.Method("Run").Doc(_ => { }).ToString());
+    }
+
+    [Fact]
+    public void MemberDoc_NullConfigureThrowsWithoutReplacingDocumentation()
+    {
+        var builder = CSharp.Method("Run").Doc(d => d.Summary("Existing."));
+
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Doc(null!));
+        OutputAssert.Equal("/// <summary>Existing.</summary>\nvoid Run();\n", builder.ToString());
+    }
+
+    [Fact]
+    public void MemberDoc_ReturnsSameConcreteBuilderForEveryMemberKind()
+    {
+        var method = CSharp.Method("Run");
+        var field = CSharp.Field("int", "value");
+        var constructor = CSharp.Constructor();
+        var property = CSharp.Property("int", "Value");
+        var indexer = CSharp.Indexer("int");
+        var eventBuilder = CSharp.Event("Action", "Changed");
+        var delegateBuilder = CSharp.Delegate("Handler");
+        var operatorBuilder = CSharp.Operator("Value", "+");
+
+        MethodBuilder returnedMethod = method.Doc(d => d.Summary("Method."));
+        FieldBuilder returnedField = field.Doc(d => d.Summary("Field."));
+        ConstructorBuilder returnedConstructor = constructor.Doc(d => d.Summary("Constructor."));
+        PropertyBuilder returnedProperty = property.Doc(d => d.Summary("Property."));
+        IndexerBuilder returnedIndexer = indexer.Doc(d => d.Summary("Indexer."));
+        EventBuilder returnedEvent = eventBuilder.Doc(d => d.Summary("Event."));
+        DelegateBuilder returnedDelegate = delegateBuilder.Doc(d => d.Summary("Delegate."));
+        OperatorBuilder returnedOperator = operatorBuilder.Doc(d => d.Summary("Operator."));
+
+        Assert.Same(method, returnedMethod);
+        Assert.Same(field, returnedField);
+        Assert.Same(constructor, returnedConstructor);
+        Assert.Same(property, returnedProperty);
+        Assert.Same(indexer, returnedIndexer);
+        Assert.Same(eventBuilder, returnedEvent);
+        Assert.Same(delegateBuilder, returnedDelegate);
+        Assert.Same(operatorBuilder, returnedOperator);
+    }
+
     private static DocBuilder CaptureDoc()
     {
         DocBuilder? captured = null;

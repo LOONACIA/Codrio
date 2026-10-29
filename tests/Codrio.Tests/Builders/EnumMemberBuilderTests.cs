@@ -5,6 +5,86 @@ namespace Codrio.Tests;
 
 public class EnumMemberBuilderTests
 {
+    [Fact]
+    public void Documentation_PrecedesMemberWithoutAddingBlankLines()
+    {
+        var builder = CSharp.Enum("Color", e => e.Member("Red", m => m.Doc(d => d.Summary("Red."))).Member("Green"));
+
+        OutputAssert.Equal("enum Color\n{\n    /// <summary>Red.</summary>\n    Red,\n    Green\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void DocumentationAndAttributes_KeepCommasOnFirstAndLastDeclarations()
+    {
+        EnumMemberBuilder? first = null;
+        EnumMemberBuilder? last = null;
+        var builder = CSharp.Enum("Color")
+            .Member("Red", "1", m => first = m.Attribute("Obsolete").Doc(d => d.Summary("Red.")))
+            .Member("Green", "2")
+            .Member("Blue", "4", m => last = m.Doc(d => d.Summary("Blue.")).Attribute("Obsolete"));
+
+        OutputAssert.Equal("enum Color\n{\n    /// <summary>Red.</summary>\n    [Obsolete]\n    Red = 1,\n"
+            + "    Green = 2,\n    /// <summary>Blue.</summary>\n    [Obsolete]\n    Blue = 4\n}\n", builder.ToString());
+        Assert.NotNull(first);
+        Assert.NotNull(last);
+        OutputAssert.Equal("/// <summary>Red.</summary>\n[Obsolete]\nRed = 1\n", first.ToString());
+        OutputAssert.Equal("/// <summary>Blue.</summary>\n[Obsolete]\nBlue = 4\n", last.ToString());
+    }
+
+    [Fact]
+    public void Doc_InvokesConfigureImmediatelyOnceAndReturnsSameBuilder()
+    {
+        EnumMemberBuilder? member = null;
+        DocBuilder? captured = null;
+        var builder = CSharp.Enum("Color").Member("Red", m => member = m);
+        var calls = 0;
+        Assert.NotNull(member);
+
+        EnumMemberBuilder returned = member.Doc(d =>
+        {
+            calls++;
+            captured = d.Summary("Red.");
+        });
+
+        Assert.Same(member, returned);
+        Assert.Equal(1, calls);
+        Assert.NotNull(captured);
+        OutputAssert.Equal("/// <summary>Red.</summary>\n", captured.ToString());
+        OutputAssert.Equal("/// <summary>Red.</summary>\nRed\n", member.ToString());
+        OutputAssert.Equal("enum Color\n{\n    /// <summary>Red.</summary>\n    Red\n}\n", builder.ToString());
+        OutputAssert.Equal("enum Color\n{\n    /// <summary>Red.</summary>\n    Red\n}\n", builder.ToString());
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void Doc_ReplacesDocumentationWithANewBuilderAndCanClearIt()
+    {
+        DocBuilder? first = null;
+        DocBuilder? second = null;
+        EnumMemberBuilder? member = null;
+        var builder = CSharp.Enum("Color").Member("Red", m => member = m.Attribute("Obsolete")
+            .Doc(d => first = d.Summary("First.")).Doc(d => second = d.Summary("Last.")));
+
+        Assert.NotSame(first, second);
+        Assert.NotNull(member);
+        OutputAssert.Equal("/// <summary>Last.</summary>\n[Obsolete]\nRed\n", member.ToString());
+        OutputAssert.Equal("enum Color\n{\n    /// <summary>Last.</summary>\n    [Obsolete]\n    Red\n}\n", builder.ToString());
+        member.Doc(_ => { });
+        OutputAssert.Equal("[Obsolete]\nRed\n", member.ToString());
+        OutputAssert.Equal("enum Color\n{\n    [Obsolete]\n    Red\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void Doc_NullConfigureThrowsWithoutReplacingDocumentation()
+    {
+        CSharp.Enum("Color").Member("Red", m =>
+        {
+            m.Doc(d => d.Summary("Existing."));
+            Assert.Throws<ArgumentNullException>("configure", () => m.Doc(null!));
+            OutputAssert.Equal("/// <summary>Existing.</summary>\nRed\n", m.ToString());
+        });
+    }
+
     [Theory]
     [InlineData(false, false, "Red\n")]
     [InlineData(true, false, "Red = 1\n")]
