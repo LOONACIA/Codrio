@@ -154,6 +154,106 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates an operator declaration with no parameters or body.</summary>
+    /// <param name="returnType">The type reference, written without validation.</param>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="returnType"/> or <paramref name="symbol"/> is null.</exception>
+    public static OperatorBuilder Operator(string returnType, string symbol)
+    {
+        if (returnType is null)
+        {
+            throw new ArgumentNullException(nameof(returnType));
+        }
+
+        if (symbol is null)
+        {
+            throw new ArgumentNullException(nameof(symbol));
+        }
+
+        return new OperatorBuilder(returnType + " operator " + symbol);
+    }
+
+    /// <summary>Creates an operator builder and configures it immediately.</summary>
+    /// <param name="returnType">The type reference, written without validation.</param>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="returnType"/>, <paramref name="symbol"/>, or <paramref name="configure"/> is null.</exception>
+    public static OperatorBuilder Operator(string returnType, string symbol, Action<OperatorBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Operator(returnType, symbol);
+        configure(builder);
+        return builder;
+    }
+
+    /// <summary>Creates an implicit conversion operator declaration with no parameters or body.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    public static OperatorBuilder ImplicitOperator(string type)
+    {
+        if (type is null)
+        {
+            throw new ArgumentNullException(nameof(type));
+        }
+
+        return new OperatorBuilder("implicit operator " + type);
+    }
+
+    /// <summary>Creates an implicit conversion operator builder and configures it immediately.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    public static OperatorBuilder ImplicitOperator(string type, Action<OperatorBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = ImplicitOperator(type);
+        configure(builder);
+        return builder;
+    }
+
+    /// <summary>Creates an explicit conversion operator declaration with no parameters or body.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    public static OperatorBuilder ExplicitOperator(string type)
+    {
+        if (type is null)
+        {
+            throw new ArgumentNullException(nameof(type));
+        }
+
+        return new OperatorBuilder("explicit operator " + type);
+    }
+
+    /// <summary>Creates an explicit conversion operator builder and configures it immediately.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    public static OperatorBuilder ExplicitOperator(string type, Action<OperatorBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = ExplicitOperator(type);
+        configure(builder);
+        return builder;
+    }
+
     /// <summary>Creates a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
     /// <returns>A new method builder.</returns>

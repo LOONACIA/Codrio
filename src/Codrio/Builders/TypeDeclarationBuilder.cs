@@ -232,6 +232,62 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds an operator declaration with no parameters or body.</summary>
+    /// <param name="returnType">The type reference, written without validation.</param>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="returnType"/> or <paramref name="symbol"/> is null.</exception>
+    public TSelf Operator(string returnType, string symbol) => Add(CSharp.Operator(returnType, symbol));
+
+    /// <summary>Immediately configures a new operator builder and adds it to the declaration.</summary>
+    /// <param name="returnType">The type reference, written without validation.</param>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="returnType"/>, <paramref name="symbol"/>, or <paramref name="configure"/> is null.</exception>
+    public TSelf Operator(string returnType, string symbol, Action<OperatorBuilder> configure) => Add(CSharp.Operator(returnType, symbol, configure));
+
+    /// <summary>Adds an implicit conversion operator declaration with no parameters or body.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    public TSelf ImplicitOperator(string type) => Add(CSharp.ImplicitOperator(type));
+
+    /// <summary>Immediately configures a new implicit conversion operator builder and adds it to the declaration.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    public TSelf ImplicitOperator(string type, Action<OperatorBuilder> configure) => Add(CSharp.ImplicitOperator(type, configure));
+
+    /// <summary>Adds an explicit conversion operator declaration with no parameters or body.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    public TSelf ExplicitOperator(string type) => Add(CSharp.ExplicitOperator(type));
+
+    /// <summary>Immediately configures a new explicit conversion operator builder and adds it to the declaration.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    public TSelf ExplicitOperator(string type, Action<OperatorBuilder> configure) => Add(CSharp.ExplicitOperator(type, configure));
+
+    /// <summary>Adds the supplied operator builder by reference without copying it.</summary>
+    /// <param name="operatorBuilder">The operator builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="operatorBuilder"/> is null.</exception>
+    public TSelf Add(OperatorBuilder operatorBuilder)
+    {
+        if (operatorBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(operatorBuilder));
+        }
+
+        items.Add(operatorBuilder.Write);
+        return (TSelf)this;
+    }
+
     /// <summary>Adds a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
     /// <returns>This type builder.</returns>
