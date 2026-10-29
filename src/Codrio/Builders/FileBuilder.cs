@@ -48,6 +48,34 @@ public sealed class FileBuilder
         return this;
     }
 
+    /// <summary>Adds an empty block namespace declaration.</summary>
+    /// <param name="name">The namespace name, written without validation.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    public FileBuilder Namespace(string name) => Add(CSharp.Namespace(name));
+
+    /// <summary>Immediately configures a new namespace builder and adds it to the file.</summary>
+    /// <param name="name">The namespace name, written without validation.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    public FileBuilder Namespace(string name, Action<NamespaceBuilder> configure) => Add(CSharp.Namespace(name, configure));
+
+    /// <summary>Adds the supplied namespace builder by reference without copying it.</summary>
+    /// <param name="namespaceBuilder">The namespace builder to add.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="namespaceBuilder"/> is null.</exception>
+    public FileBuilder Add(NamespaceBuilder namespaceBuilder)
+    {
+        if (namespaceBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(namespaceBuilder));
+        }
+
+        items.Add(namespaceBuilder.Write);
+        return this;
+    }
+
     /// <summary>Adds an empty top-level class declaration.</summary>
     /// <param name="name">The class identifier. Reserved keywords are escaped.</param>
     /// <returns>This file builder.</returns>
