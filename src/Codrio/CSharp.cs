@@ -5,6 +5,78 @@ namespace Codrio;
 /// <summary>Provides entry points for building C# source code.</summary>
 public static class CSharp
 {
+    /// <summary>Creates a constructor builder with an empty block body. Its name comes from the containing type.</summary>
+    /// <returns>A new constructor builder.</returns>
+    public static ConstructorBuilder Constructor() => new();
+
+    /// <summary>Creates a constructor builder and configures it immediately. Its name comes from the containing type.</summary>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured constructor builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    public static ConstructorBuilder Constructor(Action<ConstructorBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Constructor();
+        configure(builder);
+        return builder;
+    }
+
+    /// <summary>Creates a field declaration without an initializer.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new field builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static FieldBuilder Field(string type, string name) => new(type, name);
+
+    /// <summary>Creates a field builder and configures it immediately.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured field builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static FieldBuilder Field(string type, string name, Action<FieldBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Field(type, name);
+        configure(builder);
+        return builder;
+    }
+
+    /// <summary>Creates a method declaration with a void return type and no body.</summary>
+    /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new method builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static MethodBuilder Method(string name) => new(name);
+
+    /// <summary>Creates a method builder and configures it immediately.</summary>
+    /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured method builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static MethodBuilder Method(string name, Action<MethodBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Method(name);
+        configure(builder);
+        return builder;
+    }
+
     /// <summary>Creates an empty source file builder.</summary>
     /// <returns>A new file builder.</returns>
     public static FileBuilder File() => new();
