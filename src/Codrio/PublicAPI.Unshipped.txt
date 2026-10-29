@@ -6,12 +6,18 @@ Codrio.BodyBuilder.Line(string! code) -> Codrio.BodyBuilder!
 Codrio.CSharp
 Codrio.ClassBuilder
 Codrio.ClassOrStructBuilder<TSelf>
+Codrio.ClassOrStructBuilder<TSelf>.Add(Codrio.FieldBuilder! fieldBuilder) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.Field(string! type, string! name) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.Field(string! type, string! name, System.Action<Codrio.FieldBuilder!>! configure) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(string! type, string! name) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> TSelf!
 Codrio.EnumBuilder
 Codrio.EnumBuilder.Member(string! name) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, string! value) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.UnderlyingType(string! type) -> Codrio.EnumBuilder!
+Codrio.FieldBuilder
+Codrio.FieldBuilder.Const() -> Codrio.FieldBuilder!
+Codrio.FieldBuilder.Initializer(string! expression) -> Codrio.FieldBuilder!
 Codrio.FileBuilder
 Codrio.FileBuilder.Add(Codrio.ClassBuilder! classBuilder) -> Codrio.FileBuilder!
 Codrio.FileBuilder.Add(Codrio.EnumBuilder! enumBuilder) -> Codrio.FileBuilder!
@@ -142,6 +148,8 @@ static Codrio.CSharp.Class(string! name) -> Codrio.ClassBuilder!
 static Codrio.CSharp.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> Codrio.ClassBuilder!
 static Codrio.CSharp.Enum(string! name) -> Codrio.EnumBuilder!
 static Codrio.CSharp.Enum(string! name, System.Action<Codrio.EnumBuilder!>! configure) -> Codrio.EnumBuilder!
+static Codrio.CSharp.Field(string! type, string! name) -> Codrio.FieldBuilder!
+static Codrio.CSharp.Field(string! type, string! name, System.Action<Codrio.FieldBuilder!>! configure) -> Codrio.FieldBuilder!
 static Codrio.CSharp.File() -> Codrio.FileBuilder!
 static Codrio.CSharp.File(System.Action<Codrio.FileBuilder!>! configure) -> Codrio.FileBuilder!
 static Codrio.CSharp.FileScopedNamespace(string! name) -> Codrio.NamespaceBuilder!

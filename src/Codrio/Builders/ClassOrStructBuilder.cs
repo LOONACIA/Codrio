@@ -47,6 +47,38 @@ public abstract class ClassOrStructBuilder<TSelf> : TypeDeclarationBuilder<TSelf
         return (TSelf)this;
     }
 
+    /// <summary>Adds a field declaration without an initializer.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Field(string type, string name) => Add(CSharp.Field(type, name));
+
+    /// <summary>Immediately configures a new field builder and adds it to the declaration.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Field(string type, string name, Action<FieldBuilder> configure) => Add(CSharp.Field(type, name, configure));
+
+    /// <summary>Adds the supplied field builder by reference without copying it.</summary>
+    /// <param name="fieldBuilder">The field builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="fieldBuilder"/> is null.</exception>
+    public TSelf Add(FieldBuilder fieldBuilder)
+    {
+        if (fieldBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(fieldBuilder));
+        }
+
+        items.Add(fieldBuilder.Write);
+        return (TSelf)this;
+    }
+
     internal override string ParameterList() => primaryParameters.Count == 0
         ? ""
         : "(" + string.Join(", ", primaryParameters.ConvertAll(parameter => parameter.RenderParameter())) + ")";
