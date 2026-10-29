@@ -1,5 +1,8 @@
 #nullable enable
 Codrio.AccessorBuilder
+Codrio.AccessorBuilder.Arrow(string! expression) -> Codrio.AccessorBuilder!
+Codrio.AccessorBuilder.Body() -> Codrio.AccessorBuilder!
+Codrio.AccessorBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.AccessorBuilder!
 Codrio.BodyBuilder
 Codrio.BodyBuilder.Block(string! header) -> Codrio.BodyBuilder!
 Codrio.BodyBuilder.Block(string! header, System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.BodyBuilder!
@@ -110,8 +113,11 @@ Codrio.PropertyBuilder.Initializer(string! expression) -> Codrio.PropertyBuilder
 Codrio.PropertyOrIndexerBuilder<TSelf>
 Codrio.PropertyOrIndexerBuilder<TSelf>.Arrow(string! expression) -> TSelf!
 Codrio.PropertyOrIndexerBuilder<TSelf>.Get() -> TSelf!
+Codrio.PropertyOrIndexerBuilder<TSelf>.Get(System.Action<Codrio.AccessorBuilder!>! configure) -> TSelf!
 Codrio.PropertyOrIndexerBuilder<TSelf>.Init() -> TSelf!
+Codrio.PropertyOrIndexerBuilder<TSelf>.Init(System.Action<Codrio.AccessorBuilder!>! configure) -> TSelf!
 Codrio.PropertyOrIndexerBuilder<TSelf>.Set() -> TSelf!
+Codrio.PropertyOrIndexerBuilder<TSelf>.Set(System.Action<Codrio.AccessorBuilder!>! configure) -> TSelf!
 Codrio.RecordBuilder
 Codrio.StructBuilder
 Codrio.TypeBuilder<TSelf>

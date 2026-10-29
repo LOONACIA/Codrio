@@ -6,6 +6,23 @@ namespace Codrio.Tests;
 public class CodeWriterTests
 {
     [Fact]
+    public void CloseBlock_WithSuffixRestoresOuterIndentation()
+    {
+        var writer = new CodeWriter();
+        writer.OpenBlock();
+        writer.WriteLine("int Count");
+        writer.OpenBlock();
+        writer.WriteLine("get => field;");
+        writer.CloseBlock(" = 0;");
+        writer.WriteLine("next");
+        writer.CloseBlock();
+        writer.WriteLine("last");
+
+        OutputAssert.Equal("{\n    int Count\n    {\n        get => field;\n    } = 0;\n    next\n}\nlast\n",
+            writer.ToString());
+    }
+
+    [Fact]
     public void WriteLine_WritesUnindentedLine()
     {
         var writer = new CodeWriter();

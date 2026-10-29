@@ -38,5 +38,11 @@ internal sealed class CodeWriter
         WriteLine("}");
     }
 
+    internal void CloseBlock(string suffix)
+    {
+        indentation--;
+        WriteLine("}" + suffix);
+    }
+
     public override string ToString() => builder.ToString();
 }

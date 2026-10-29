@@ -9,6 +9,7 @@ namespace Codrio;
 /// Builders are mutable and are not thread-safe. Modifier combinations are not validated.
 /// Set and Init share one accessor slot; the last call wins. Accessor calls clear the expression body,
 /// and Arrow clears all accessors. With neither specified, get and set accessors are rendered.
+/// A declaration uses block formatting when any accessor has a block or expression body.
 /// </remarks>
 public abstract class PropertyOrIndexerBuilder<TSelf> : MemberBuilder<TSelf>
     where TSelf : PropertyOrIndexerBuilder<TSelf>
@@ -30,6 +31,24 @@ public abstract class PropertyOrIndexerBuilder<TSelf> : MemberBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Immediately configures a new get accessor, replacing any previous getter and clearing the expression body.</summary>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This declaration builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    public TSelf Get(Action<AccessorBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new AccessorBuilder("get");
+        configure(builder);
+        getter = builder;
+        expression = null;
+        return (TSelf)this;
+    }
+
     /// <summary>Sets a bodyless set accessor, replacing any previous set or init accessor and clearing the expression body.</summary>
     /// <returns>This declaration builder.</returns>
     public TSelf Set()
@@ -39,11 +58,47 @@ public abstract class PropertyOrIndexerBuilder<TSelf> : MemberBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Immediately configures a new set accessor, replacing any previous set or init accessor and clearing the expression body.</summary>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This declaration builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    public TSelf Set(Action<AccessorBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new AccessorBuilder("set");
+        configure(builder);
+        setter = builder;
+        expression = null;
+        return (TSelf)this;
+    }
+
     /// <summary>Sets a bodyless init accessor, replacing any previous set or init accessor and clearing the expression body.</summary>
     /// <returns>This declaration builder.</returns>
     public TSelf Init()
     {
         setter = new AccessorBuilder("init");
+        expression = null;
+        return (TSelf)this;
+    }
+
+    /// <summary>Immediately configures a new init accessor, replacing any previous set or init accessor and clearing the expression body.</summary>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This declaration builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    public TSelf Init(Action<AccessorBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new AccessorBuilder("init");
+        configure(builder);
+        setter = builder;
         expression = null;
         return (TSelf)this;
     }
@@ -66,6 +121,16 @@ public abstract class PropertyOrIndexerBuilder<TSelf> : MemberBuilder<TSelf>
         if (expression is not null)
         {
             writer.WriteLine(head + " => " + expression + ";");
+            return;
+        }
+
+        if (getter?.HasBody == true || setter?.HasBody == true)
+        {
+            writer.WriteLine(head);
+            writer.OpenBlock();
+            getter?.Write(writer);
+            setter?.Write(writer);
+            writer.CloseBlock(initializer is null ? "" : " = " + initializer + ";");
             return;
         }
 

@@ -5,6 +5,211 @@ namespace Codrio.Tests;
 
 public class PropertyBuilderTests
 {
+    [Fact]
+    public void AccessorBodies_RenderBlockWithGetterBeforeSetter()
+    {
+        var builder = CSharp.Property("int", "Count", p => p.Public()
+            .Set(a => a.Body(b => b.Line("count = value;"))).Get(a => a.Arrow("count")));
+
+        OutputAssert.Equal("public int Count\n{\n    get => count;\n    set\n    {\n        count = value;\n    }\n}\n",
+            builder.ToString());
+    }
+
+    [Fact]
+    public void GetterBody_RendersWithoutImplicitSetter()
+    {
+        var builder = CSharp.Property("int", "Count", p => p.Get(a => a.Body(b => b.Line("return count;"))));
+
+        OutputAssert.Equal("int Count\n{\n    get\n    {\n        return count;\n    }\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void MixedAccessors_RenderBodylessAccessorInsideBlock()
+    {
+        var builder = CSharp.Property("int", "Count").Init(a => a.Arrow("field = value")).Get();
+        OutputAssert.Equal("int Count\n{\n    get;\n    init => field = value;\n}\n", builder.ToString());
+        builder.Set(a => a.Body());
+        OutputAssert.Equal("int Count\n{\n    get;\n    set\n    {\n    }\n}\n", builder.ToString());
+        builder.Get(a => a.Arrow("field")).Set();
+        OutputAssert.Equal("int Count\n{\n    get => field;\n    set;\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void BodylessCalls_ReplaceConfiguredAccessors()
+    {
+        var builder = CSharp.Property("int", "Count").Get(a => a.Arrow("count"));
+        builder.Get();
+        OutputAssert.Equal("int Count { get; }\n", builder.ToString());
+        builder.Set(a => a.Body(b => b.Line("count = value;"))).Set();
+        OutputAssert.Equal("int Count { get; set; }\n", builder.ToString());
+        builder.Init(a => a.Arrow("count = value")).Init();
+        OutputAssert.Equal("int Count { get; init; }\n", builder.ToString());
+    }
+
+    [Fact]
+    public void ConfiguredSetAndInit_ShareSlotWithLastCallWinning()
+    {
+        var builder = CSharp.Property("int", "Count").Get(a => a.Arrow("count"))
+            .Set(a => a.Body()).Init(a => a.Arrow("count = value"));
+        OutputAssert.Equal("int Count\n{\n    get => count;\n    init => count = value;\n}\n", builder.ToString());
+        builder.Set(a => a.Body(b => b.Line("count = value;")));
+        OutputAssert.Equal("int Count\n{\n    get => count;\n    set\n    {\n        count = value;\n    }\n}\n",
+            builder.ToString());
+        builder.Init();
+        OutputAssert.Equal("int Count\n{\n    get => count;\n    init;\n}\n", builder.ToString());
+        builder.Init(a => a.Body()).Set();
+        OutputAssert.Equal("int Count\n{\n    get => count;\n    set;\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void ArrowAndConfiguredAccessors_LastCallWins()
+    {
+        var builder = CSharp.Property("int", "Count").Get(a => a.Body()).Set(a => a.Body()).Arrow("1");
+        OutputAssert.Equal("int Count => 1;\n", builder.ToString());
+        builder.Get(a => a.Arrow("2"));
+        OutputAssert.Equal("int Count\n{\n    get => 2;\n}\n", builder.ToString());
+        builder.Arrow("3").Set(a => a.Body());
+        OutputAssert.Equal("int Count\n{\n    set\n    {\n    }\n}\n", builder.ToString());
+        builder.Arrow("4").Init(a => a.Arrow("count = value"));
+        OutputAssert.Equal("int Count\n{\n    init => count = value;\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void BlockInitializer_IsRetainedAcrossDeclarationArrow()
+    {
+        var builder = CSharp.Property("string", "Name", p => p.Public()
+            .Get(a => a.Arrow("field")).Set(a => a.Arrow("field = value.Trim()")).Initializer("\"\""));
+        OutputAssert.Equal("public string Name\n{\n    get => field;\n    set => field = value.Trim();\n} = \"\";\n",
+            builder.ToString());
+        builder.Arrow("name");
+        OutputAssert.Equal("public string Name => name;\n", builder.ToString());
+        builder.Get(a => a.Body(b => b.Line("return field;")));
+        OutputAssert.Equal("public string Name\n{\n    get\n    {\n        return field;\n    }\n} = \"\";\n",
+            builder.ToString());
+    }
+
+    [Fact]
+    public void NestedClass_IndentsPropertyAccessorAndBodyBlocks()
+    {
+        var builder = CSharp.Class("Outer").Class("Inner", c => c.Property("int", "Count", p => p
+            .Get(a => a.Body(b => b.Block("if (ready)", ib => ib.Line("return field;"))
+                .Line("return 0;"))).Initializer("0"))
+            .Property("int", "Next"));
+
+        OutputAssert.Equal("class Outer\n{\n    class Inner\n    {\n        int Count\n        {\n" +
+            "            get\n            {\n                if (ready)\n                {\n" +
+            "                    return field;\n                }\n                return 0;\n            }\n" +
+            "        } = 0;\n\n        int Next { get; set; }\n    }\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void EmptyAccessorConfiguration_KeepsSingleLineFormat()
+    {
+        var builder = CSharp.Property("int", "Count", p => p.Get(_ => { }));
+        OutputAssert.Equal("int Count { get; }\n", builder.ToString());
+        builder.Set(_ => { });
+        OutputAssert.Equal("int Count { get; set; }\n", builder.ToString());
+        builder.Init(_ => { });
+        OutputAssert.Equal("int Count { get; init; }\n", builder.ToString());
+    }
+
+    [Theory]
+    [InlineData("get")]
+    [InlineData("set")]
+    [InlineData("init")]
+    public void AccessorConfiguration_RunsImmediatelyOnceAndRetainsFreshBuilder(string keyword)
+    {
+        var builder = CSharp.Property("int", "Count").Arrow("0");
+        AccessorBuilder? accessor = null;
+        var calls = 0;
+        Action<AccessorBuilder> configure = a =>
+        {
+            calls++;
+            accessor = a;
+            OutputAssert.Equal(keyword + ";\n", a.ToString());
+            OutputAssert.Equal("int Count => 0;\n", builder.ToString());
+            a.Arrow("1");
+        };
+        switch (keyword)
+        {
+            case "get": Assert.Same(builder, builder.Get(configure)); break;
+            case "set": Assert.Same(builder, builder.Set(configure)); break;
+            case "init": Assert.Same(builder, builder.Init(configure)); break;
+        }
+
+        Assert.Equal(1, calls);
+        Assert.NotNull(accessor);
+        accessor.Arrow("2");
+        var expected = "int Count\n{\n    " + keyword + " => 2;\n}\n";
+        OutputAssert.Equal(expected, builder.ToString());
+        OutputAssert.Equal(expected, builder.ToString());
+        Assert.Equal(1, calls);
+        Action<AccessorBuilder> replace = a =>
+        {
+            Assert.NotSame(accessor, a);
+            OutputAssert.Equal(keyword + ";\n", a.ToString());
+        };
+        switch (keyword)
+        {
+            case "get": builder.Get(replace); break;
+            case "set": builder.Set(replace); break;
+            case "init": builder.Init(replace); break;
+        }
+
+        accessor.Body();
+        OutputAssert.Equal("int Count { " + keyword + "; }\n", builder.ToString());
+    }
+
+    [Fact]
+    public void NullAccessorConfiguration_ThrowsWithoutChangingDeclaration()
+    {
+        var builder = CSharp.Property("int", "Count").Arrow("1");
+
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Get(null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Set(null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Init(null!));
+        OutputAssert.Equal("int Count => 1;\n", builder.ToString());
+    }
+
+    [Fact]
+    public void CompleteFile_RendersAccessorBodiesAndCompiles()
+    {
+        var file = CSharp.File()
+            .Class("Counter", c => c.Field("int", "count")
+                .Property("int", "Count", p => p.Public().Get(a => a.Arrow("count"))
+                    .Set(a => a.Body(b => b.Line("count = value;"))))
+                .Property("int", "Positive", p => p.Public().Get(a => a.Body(b => b
+                    .Block("if (count > 0)", ib => ib.Line("return count;"))
+                    .Block("else", eb => eb.Line("return 0;")))))
+                .Property("int", "Ignored", p => p.Public().Get(a => a.Arrow("0")).Set(a => a.Body()))
+                .Property("int", "Zero", p => p.Public().Static().Get(a => a.Body(b => b.Line("return 0;")))))
+            .Class("Base", c => c.Abstract().Property("int", "Value", p => p.Public().Abstract().Get()))
+            .Class("Derived", c => c.BaseType("Base").Property("int", "Value", p => p.Public().Override()
+                .Get(a => a.Body(b => b.Line("return 1;")))))
+            .Struct("Point", s => s.Property("int", "Zero", p => p.Public().ReadOnly()
+                .Get(a => a.Body(b => b.Line("return 0;")))))
+            .Interface("ICounter", i => i.Property("int", "Count", p => p.Get(a => a.Arrow("1"))))
+            .Class("Implementation", c => c.BaseType("ICounter"));
+        const string expected =
+            "class Counter\n{\n    int count;\n\n    public int Count\n    {\n        get => count;\n" +
+            "        set\n        {\n            count = value;\n        }\n    }\n\n" +
+            "    public int Positive\n    {\n        get\n        {\n            if (count > 0)\n            {\n" +
+            "                return count;\n            }\n            else\n            {\n" +
+            "                return 0;\n            }\n        }\n    }\n\n" +
+            "    public int Ignored\n    {\n        get => 0;\n        set\n        {\n        }\n    }\n\n" +
+            "    public static int Zero\n    {\n        get\n        {\n            return 0;\n        }\n    }\n}\n\n" +
+            "abstract class Base\n{\n    public abstract int Value { get; }\n}\n\n" +
+            "class Derived : Base\n{\n    public override int Value\n    {\n        get\n        {\n" +
+            "            return 1;\n        }\n    }\n}\n\n" +
+            "struct Point\n{\n    public readonly int Zero\n    {\n        get\n        {\n" +
+            "            return 0;\n        }\n    }\n}\n\n" +
+            "interface ICounter\n{\n    int Count\n    {\n        get => 1;\n    }\n}\n\n" +
+            "class Implementation : ICounter\n{\n}\n";
+
+        OutputAssert.Equal(expected, file.ToString());
+        CompilationAssert.NoErrors(file.ToString());
+    }
+
     [Theory]
     [InlineData("Count", "int Count { get; set; }\n")]
     [InlineData("class", "int @class { get; set; }\n")]
