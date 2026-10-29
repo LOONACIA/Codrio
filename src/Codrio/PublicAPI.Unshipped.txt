@@ -18,9 +18,26 @@ Codrio.NamespaceBuilder
 Codrio.NamespaceBuilder.Add(Codrio.ClassBuilder! classBuilder) -> Codrio.NamespaceBuilder!
 Codrio.NamespaceBuilder.Class(string! name) -> Codrio.NamespaceBuilder!
 Codrio.NamespaceBuilder.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> Codrio.NamespaceBuilder!
-override Codrio.ClassBuilder.ToString() -> string!
+Codrio.TypeBuilder<TSelf>
+Codrio.TypeBuilder<TSelf>.Internal() -> TSelf!
+Codrio.TypeBuilder<TSelf>.Private() -> TSelf!
+Codrio.TypeBuilder<TSelf>.PrivateProtected() -> TSelf!
+Codrio.TypeBuilder<TSelf>.Protected() -> TSelf!
+Codrio.TypeBuilder<TSelf>.ProtectedInternal() -> TSelf!
+Codrio.TypeBuilder<TSelf>.Public() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>
+Codrio.TypeDeclarationBuilder<TSelf>.Abstract() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.ClassBuilder! classBuilder) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Partial() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Raw(string! code) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ReadOnly() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Sealed() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Static() -> TSelf!
 override Codrio.FileBuilder.ToString() -> string!
 override Codrio.NamespaceBuilder.ToString() -> string!
+override Codrio.TypeBuilder<TSelf>.ToString() -> string!
 static Codrio.CSharp.Class(string! name) -> Codrio.ClassBuilder!
 static Codrio.CSharp.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> Codrio.ClassBuilder!
 static Codrio.CSharp.File() -> Codrio.FileBuilder!
