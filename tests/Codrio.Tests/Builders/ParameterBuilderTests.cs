@@ -6,6 +6,203 @@ namespace Codrio.Tests;
 public class ParameterBuilderTests
 {
     [Fact]
+    public void Attribute_RendersInlineWithoutLineEnding()
+    {
+        CSharp.Method("Run").Parameter("string", "value", p =>
+            OutputAssert.Equal("[NotNull] string value", p.Attribute("NotNull").ToString()));
+    }
+
+    [Fact]
+    public void Attributes_PreserveOrderDuplicatesAndRawArguments()
+    {
+        CSharp.Method("Run").Parameter("string", "value", p =>
+        {
+            p.Attribute("NotNull", Array.Empty<string>())
+                .Attribute("Example", "\"x\"", "typeof(string)", "Enabled = true")
+                .Attribute("NotNull");
+
+            OutputAssert.Equal("[NotNull] [Example(\"x\", typeof(string), Enabled = true)] [NotNull] string value", p.ToString());
+        });
+    }
+
+    [Theory]
+    [InlineData("this")]
+    [InlineData("ref")]
+    [InlineData("out")]
+    [InlineData("in")]
+    [InlineData("params")]
+    public void Attribute_PrecedesEachModifierAndDefault(string modifier)
+    {
+        CSharp.Method("Run").Parameter("string", "value", p =>
+        {
+            switch (modifier)
+            {
+                case "this": p.This(); break;
+                case "ref": p.Ref(); break;
+                case "out": p.Out(); break;
+                case "in": p.In(); break;
+                case "params": p.Params(); break;
+            }
+
+            p.Default("\"\"").Attribute("NotNull").Attribute("Description", "\"x\"");
+
+            OutputAssert.Equal("[NotNull] [Description(\"x\")] " + modifier + " string value = \"\"", p.ToString());
+        });
+    }
+
+    [Fact]
+    public void Attribute_PrecedesCombinedModifiersAndDefault()
+    {
+        CSharp.Method("Run").Parameter("string", "value", p =>
+        {
+            p.Params().In().Out().Ref().This().Default("\"\"").Attribute("Example");
+
+            OutputAssert.Equal("[Example] this ref out in params string value = \"\"", p.ToString());
+        });
+    }
+
+    [Theory]
+    [InlineData("property: JsonPropertyName")]
+    [InlineData("param: Description")]
+    public void Attribute_PreservesTargetPrefix(string name)
+    {
+        CSharp.Record("Person").PrimaryParameter("string", "Name", p =>
+            OutputAssert.Equal("[" + name + "(\"name\")] string Name", p.Attribute(name, "\"name\"").ToString()));
+    }
+
+    [Fact]
+    public void Attribute_CapturesArgumentsAtCallTime()
+    {
+        CSharp.Method("Run").Parameter("string", "value", p =>
+        {
+            var arguments = new[] { "\"original\"", "true" };
+            p.Attribute("Example", arguments);
+            arguments[0] = "\"changed\"";
+            arguments[1] = null!;
+
+            OutputAssert.Equal("[Example(\"original\", true)] string value", p.ToString());
+        });
+    }
+
+    [Fact]
+    public void Attribute_RejectsNullAtCallTimeWithoutAddingAttribute()
+    {
+        CSharp.Method("Run").Parameter("string", "value", p =>
+        {
+            p.Attribute("Existing");
+
+            Assert.Throws<ArgumentNullException>("name", () => p.Attribute(null!));
+            Assert.Throws<ArgumentNullException>("arguments", () => p.Attribute("X", (string[])null!));
+            Assert.Throws<ArgumentNullException>("arguments", () => p.Attribute("X", "a", null!));
+            OutputAssert.Equal("[Existing] string value", p.ToString());
+        });
+    }
+
+    [Fact]
+    public void Attribute_ReturnsSameBuilder()
+    {
+        CSharp.Method("Run").Parameter("string", "value", p => Assert.Same(p, p.Attribute("NotNull")));
+    }
+
+    [Fact]
+    public void Method_RendersAttributeOnSelectedParameter()
+    {
+        var builder = CSharp.Method("Log", m => m.Parameter("string", "message")
+            .Parameter("string", "caller", p => p.Attribute("CallerMemberName").Default("\"\"")));
+
+        OutputAssert.Equal("void Log(string message, [CallerMemberName] string caller = \"\");\n", builder.ToString());
+    }
+
+    [Fact]
+    public void Constructor_RendersParameterAttributeInline()
+    {
+        var builder = CSharp.Class("Service", c => c.Constructor(k => k.Public()
+            .Parameter("string", "name", p => p.Attribute("NotNull"))));
+
+        OutputAssert.Equal("class Service\n{\n    public Service([NotNull] string name)\n    {\n    }\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void Delegate_RendersParameterAttributeInline()
+    {
+        var builder = CSharp.Delegate("Handler", d => d.Parameter("string", "value", p => p.Attribute("NotNull")));
+
+        OutputAssert.Equal("delegate void Handler([NotNull] string value);\n", builder.ToString());
+    }
+
+    [Fact]
+    public void Indexer_RendersParameterAttributeInline()
+    {
+        var builder = CSharp.Indexer("int", x => x.Parameter("string", "key", p => p.Attribute("NotNull")).Get());
+
+        OutputAssert.Equal("int this[[NotNull] string key] { get; }\n", builder.ToString());
+    }
+
+    [Fact]
+    public void Operator_RendersParameterAttributeInline()
+    {
+        var builder = CSharp.Operator("Value", "+", o => o.Public().Static()
+            .Parameter("Value", "value", p => p.Attribute("Description", "\"x\"")).Arrow("value"));
+
+        OutputAssert.Equal("public static Value operator +([Description(\"x\")] Value value) => value;\n", builder.ToString());
+    }
+
+    [Fact]
+    public void ClassAndStruct_RenderPrimaryParameterAttributeInline()
+    {
+        var classBuilder = CSharp.Class("Service", c => c.PrimaryParameter("string", "name", p => p.Attribute("NotNull")));
+        var structBuilder = CSharp.Struct("Value", s => s.PrimaryParameter("int", "id", p => p.Attribute("Description", "\"x\"")));
+
+        OutputAssert.Equal("class Service([NotNull] string name)\n{\n}\n", classBuilder.ToString());
+        OutputAssert.Equal("struct Value([Description(\"x\")] int id)\n{\n}\n", structBuilder.ToString());
+    }
+
+    [Theory]
+    [InlineData(false, "record")]
+    [InlineData(true, "record struct")]
+    public void Record_RendersPrimaryParameterAttributeAndEndsWithSemicolon(bool isStruct, string keyword)
+    {
+        var builder = isStruct ? CSharp.RecordStruct("Person") : CSharp.Record("Person");
+        builder.PrimaryParameter("string", "Name", p => p.Attribute("property: JsonPropertyName", "\"name\""));
+
+        OutputAssert.Equal(keyword + " Person([property: JsonPropertyName(\"name\")] string Name);\n", builder.ToString());
+    }
+
+    [Fact]
+    public void CompleteFile_WithAttributesOnAllParameterLocations_Compiles()
+    {
+        var file = CSharp.File().NullableEnable().Namespace("App", n => n
+            .Class("Service", c => c.Public()
+                .Constructor(k => k.Public().Parameter("string", "name", p => p.Attribute("System.Diagnostics.CodeAnalysis.NotNull")))
+                .Method("TryGet", m => m.Public().Returns("bool")
+                    .Parameter("string?", "value", p => p.Out().Attribute("System.Diagnostics.CodeAnalysis.NotNullWhen", "true"))
+                    .Body(b => b.Line("value = \"found\";").Line("return true;")))
+                .Method("Log", m => m.Public().Parameter("string", "message")
+                    .Parameter("string", "caller", p => p.Attribute("System.Runtime.CompilerServices.CallerMemberName").Default("\"\""))
+                    .Body())
+                .Indexer("int", x => x.Public().Parameter("string", "key", p => p.Attribute("System.Diagnostics.CodeAnalysis.NotNull"))
+                    .Arrow("key.Length"))
+                .Operator("Service", "+", o => o.Public().Static()
+                    .Parameter("Service", "value", p => p.Attribute("System.Diagnostics.CodeAnalysis.NotNull")).Arrow("value")))
+            .Class("TextExtensions", c => c.Public().Static()
+                .Method("EnsureText", m => m.Public().Static()
+                    .Parameter("string?", "text", p => p.Attribute("System.Diagnostics.CodeAnalysis.NotNull").This())
+                    .Body(b => b.Line("if (text is null) throw new System.ArgumentNullException(nameof(text));"))))
+            .Delegate("Handler", d => d.Public()
+                .Parameter("string", "value", p => p.Attribute("System.Diagnostics.CodeAnalysis.NotNull")))
+            .Record("Entry", r => r.Public()
+                .PrimaryParameter("int", "Id", p => p.Attribute("property: System.ComponentModel.Description", "\"Identifier\"")))
+            .Class("Named", c => c.Public()
+                .PrimaryParameter("string", "name", p => p.Attribute("param: System.Diagnostics.CodeAnalysis.NotNull")))
+            .Struct("Number", s => s.Public()
+                .PrimaryParameter("int", "id", p => p.Attribute("System.ComponentModel.Description", "\"Identifier\"")))
+            .RecordStruct("Point", r => r.Public()
+                .PrimaryParameter("int", "Id", p => p.Attribute("property: System.ComponentModel.Description", "\"Identifier\""))));
+
+        CompilationAssert.NoErrors(file.ToString());
+    }
+
+    [Fact]
     public void ToString_RendersParameterFragmentWithoutLineEnding()
     {
         CSharp.Class("Service").PrimaryParameter("string", "name", p =>

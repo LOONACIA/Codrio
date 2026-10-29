@@ -125,6 +125,7 @@ Codrio.OperatorBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Co
 Codrio.OperatorBuilder.Parameter(string! type, string! name) -> Codrio.OperatorBuilder!
 Codrio.OperatorBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.OperatorBuilder!
 Codrio.ParameterBuilder
+Codrio.ParameterBuilder.Attribute(string! name, params string![]! arguments) -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.Default(string! expression) -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.In() -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.Out() -> Codrio.ParameterBuilder!
