@@ -245,6 +245,36 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds an empty nested enum declaration.</summary>
+    /// <param name="name">The enum identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Enum(string name) => Add(CSharp.Enum(name));
+
+    /// <summary>Immediately configures a new enum builder and adds it as a nested declaration.</summary>
+    /// <param name="name">The enum identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Enum(string name, Action<EnumBuilder> configure) => Add(CSharp.Enum(name, configure));
+
+    /// <summary>Adds the supplied enum builder by reference without copying it.</summary>
+    /// <param name="enumBuilder">The enum builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="enumBuilder"/> is null.</exception>
+    public TSelf Add(EnumBuilder enumBuilder)
+    {
+        if (enumBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(enumBuilder));
+        }
+
+        items.Add(enumBuilder.Write);
+        return (TSelf)this;
+    }
+
     /// <summary>Adds unvalidated source text, normalizing CRLF line endings to LF.</summary>
     /// <param name="code">The source text to write as one or more lines.</param>
     /// <returns>This type builder.</returns>

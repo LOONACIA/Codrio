@@ -158,6 +158,36 @@ public sealed class NamespaceBuilder
         return this;
     }
 
+    /// <summary>Adds an empty enum declaration.</summary>
+    /// <param name="name">The enum identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Enum(string name) => Add(CSharp.Enum(name));
+
+    /// <summary>Immediately configures a new enum builder and adds it to the namespace.</summary>
+    /// <param name="name">The enum identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Enum(string name, Action<EnumBuilder> configure) => Add(CSharp.Enum(name, configure));
+
+    /// <summary>Adds the supplied enum builder by reference without copying it.</summary>
+    /// <param name="enumBuilder">The enum builder to add.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="enumBuilder"/> is null.</exception>
+    public NamespaceBuilder Add(EnumBuilder enumBuilder)
+    {
+        if (enumBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(enumBuilder));
+        }
+
+        items.Add(enumBuilder.Write);
+        return this;
+    }
+
     internal void Write(CodeWriter writer)
     {
         if (fileScoped)
