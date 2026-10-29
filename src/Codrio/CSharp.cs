@@ -79,6 +79,29 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates an indexer declaration with get and set accessors and no parameters.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <returns>A new indexer builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    public static IndexerBuilder Indexer(string type) => new(type);
+
+    /// <summary>Creates an indexer builder and configures it immediately.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured indexer builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    public static IndexerBuilder Indexer(string type, Action<IndexerBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Indexer(type);
+        configure(builder);
+        return builder;
+    }
+
     /// <summary>Creates a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
     /// <returns>A new method builder.</returns>

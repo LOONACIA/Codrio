@@ -57,6 +57,9 @@ Codrio.FileBuilder.RecordStruct(string! name, System.Action<Codrio.RecordBuilder
 Codrio.FileBuilder.Struct(string! name) -> Codrio.FileBuilder!
 Codrio.FileBuilder.Struct(string! name, System.Action<Codrio.StructBuilder!>! configure) -> Codrio.FileBuilder!
 Codrio.FileBuilder.Using(string! name) -> Codrio.FileBuilder!
+Codrio.IndexerBuilder
+Codrio.IndexerBuilder.Parameter(string! type, string! name) -> Codrio.IndexerBuilder!
+Codrio.IndexerBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.IndexerBuilder!
 Codrio.InterfaceBuilder
 Codrio.MemberBuilder<TSelf>
 Codrio.MemberBuilder<TSelf>.Abstract() -> TSelf!
@@ -131,6 +134,7 @@ Codrio.TypeDeclarationBuilder<TSelf>
 Codrio.TypeDeclarationBuilder<TSelf>.Abstract() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.ClassBuilder! classBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.EnumBuilder! enumBuilder) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.IndexerBuilder! indexerBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.InterfaceBuilder! interfaceBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.MethodBuilder! methodBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.PropertyBuilder! propertyBuilder) -> TSelf!
@@ -141,6 +145,8 @@ Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Enum(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Enum(string! name, System.Action<Codrio.EnumBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Indexer(string! type) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Indexer(string! type, System.Action<Codrio.IndexerBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Interface(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Interface(string! name, System.Action<Codrio.InterfaceBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Method(string! name) -> TSelf!
@@ -183,6 +189,8 @@ static Codrio.CSharp.File() -> Codrio.FileBuilder!
 static Codrio.CSharp.File(System.Action<Codrio.FileBuilder!>! configure) -> Codrio.FileBuilder!
 static Codrio.CSharp.FileScopedNamespace(string! name) -> Codrio.NamespaceBuilder!
 static Codrio.CSharp.FileScopedNamespace(string! name, System.Action<Codrio.NamespaceBuilder!>! configure) -> Codrio.NamespaceBuilder!
+static Codrio.CSharp.Indexer(string! type) -> Codrio.IndexerBuilder!
+static Codrio.CSharp.Indexer(string! type, System.Action<Codrio.IndexerBuilder!>! configure) -> Codrio.IndexerBuilder!
 static Codrio.CSharp.Interface(string! name) -> Codrio.InterfaceBuilder!
 static Codrio.CSharp.Interface(string! name, System.Action<Codrio.InterfaceBuilder!>! configure) -> Codrio.InterfaceBuilder!
 static Codrio.CSharp.Method(string! name) -> Codrio.MethodBuilder!

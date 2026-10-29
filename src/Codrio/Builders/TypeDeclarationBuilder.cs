@@ -142,6 +142,34 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds an indexer declaration with get and set accessors and no parameters.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    public TSelf Indexer(string type) => Add(CSharp.Indexer(type));
+
+    /// <summary>Immediately configures a new indexer builder and adds it to the declaration.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    public TSelf Indexer(string type, Action<IndexerBuilder> configure) => Add(CSharp.Indexer(type, configure));
+
+    /// <summary>Adds the supplied indexer builder by reference without copying it.</summary>
+    /// <param name="indexerBuilder">The indexer builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="indexerBuilder"/> is null.</exception>
+    public TSelf Add(IndexerBuilder indexerBuilder)
+    {
+        if (indexerBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(indexerBuilder));
+        }
+
+        items.Add(indexerBuilder.Write);
+        return (TSelf)this;
+    }
+
     /// <summary>Adds a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
     /// <returns>This type builder.</returns>
