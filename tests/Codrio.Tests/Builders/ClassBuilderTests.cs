@@ -5,6 +5,157 @@ namespace Codrio.Tests;
 
 public class ClassBuilderTests
 {
+    [Fact]
+    public void BaseTypes_RenderInAdditionOrder()
+    {
+        var builder = CSharp.Class("Repo").BaseType("Base");
+
+        OutputAssert.Equal("class Repo : Base\n{\n}\n", builder.ToString());
+        builder.BaseType("IRepo").BaseType("IOther");
+        OutputAssert.Equal("class Repo : Base, IRepo, IOther\n{\n}\n", builder.ToString());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not a type")]
+    [InlineData(" global::Example.Base<int> ")]
+    public void BaseType_PreservesUnvalidatedText(string type)
+    {
+        var builder = CSharp.Class("Repo").BaseType(type);
+
+        OutputAssert.Equal("class Repo : " + type + "\n{\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void TypeParameters_RenderInAdditionOrder()
+    {
+        var builder = CSharp.Class("Repo").TypeParameter("T");
+
+        OutputAssert.Equal("class Repo<T>\n{\n}\n", builder.ToString());
+        builder.TypeParameter("TKey", _ => { }).TypeParameter("TValue");
+        OutputAssert.Equal("class Repo<T, TKey, TValue>\n{\n}\n", builder.ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GenericHeader_RendersInSyntaxOrderRegardlessOfCallOrder(bool baseTypesFirst)
+    {
+        var builder = CSharp.Class("Repo");
+        if (baseTypesFirst)
+        {
+            builder.BaseType("Base").BaseType("IRepo");
+        }
+
+        builder.TypeParameter("TFirst")
+            .TypeParameter("TKey", t => t.Constraint("notnull"))
+            .TypeParameter("TMiddle", _ => { })
+            .TypeParameter("TValue", t => t.Constraint("class").Constraint("new()"))
+            .TypeParameter("TOther");
+
+        if (!baseTypesFirst)
+        {
+            builder.BaseType("Base").BaseType("IRepo");
+        }
+
+        OutputAssert.Equal(
+            "class Repo<TFirst, TKey, TMiddle, TValue, TOther> : Base, IRepo where TKey : notnull where TValue : class, new()\n{\n}\n",
+            builder.ToString());
+    }
+
+    [Fact]
+    public void GenericHeader_IncludesAccessibilityAndModifiers()
+    {
+        var builder = CSharp.Class("Repo").Partial().Sealed().Public()
+            .BaseType("Base").TypeParameter("T", t => t.Constraint("class"));
+
+        OutputAssert.Equal(
+            "public sealed partial class Repo<T> : Base where T : class\n{\n}\n",
+            builder.ToString());
+    }
+
+    [Fact]
+    public void NestedClasses_RenderGenericHeaders()
+    {
+        var builder = CSharp.Class("Outer").TypeParameter("T")
+            .Class("Inner", c => c.TypeParameter("U", t => t.Constraint("class")))
+            .Add(CSharp.Class("Other").TypeParameter("V").BaseType("System.Object"));
+
+        OutputAssert.Equal(
+            "class Outer<T>\n{\n    class Inner<U> where U : class\n    {\n    }\n\n    class Other<V> : System.Object\n    {\n    }\n}\n",
+            builder.ToString());
+        CompilationAssert.NoErrors(builder.ToString());
+    }
+
+    [Theory]
+    [InlineData("class")]
+    [InlineData("@class")]
+    public void TypeParameter_EscapesKeywordInDeclarationAndConstraint(string name)
+    {
+        var builder = CSharp.Class("Repo").TypeParameter(name, t => t.Constraint("class"));
+
+        OutputAssert.Equal("class Repo<@class> where @class : class\n{\n}\n", builder.ToString());
+        CompilationAssert.NoErrors(builder.ToString());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("1T")]
+    [InlineData("T.Value")]
+    [InlineData("T Value")]
+    [InlineData("T-Value")]
+    [InlineData("@@T")]
+    public void TypeParameter_RejectsInvalidNameBeforeConfiguring(string name)
+    {
+        var builder = CSharp.Class("Repo");
+        var configured = false;
+
+        Assert.Throws<ArgumentException>("name", () => builder.TypeParameter(name));
+        Assert.Throws<ArgumentException>("name", () => builder.TypeParameter(name, _ => configured = true));
+        Assert.False(configured);
+        OutputAssert.Equal("class Repo\n{\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void GenericHeader_RejectsNullArguments()
+    {
+        var builder = CSharp.Class("Repo");
+        var configured = false;
+
+        Assert.Throws<ArgumentNullException>("type", () => builder.BaseType(null!));
+        Assert.Throws<ArgumentNullException>("name", () => builder.TypeParameter(null!));
+        Assert.Throws<ArgumentNullException>("name", () => builder.TypeParameter(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.TypeParameter("T", null!));
+        Assert.False(configured);
+        OutputAssert.Equal("class Repo\n{\n}\n", builder.ToString());
+    }
+
+    [Fact]
+    public void GenericHeaderMethods_ReturnSameClassBuilder()
+    {
+        var builder = CSharp.Class("Repo");
+
+        Assert.Same(builder, builder.BaseType("Base"));
+        Assert.Same(builder, builder.TypeParameter("T"));
+        Assert.Same(builder, builder.TypeParameter("U", t => t.Constraint("class")));
+    }
+
+    [Fact]
+    public void FileWithBaseTypesAndGenericConstraints_Compiles()
+    {
+        var builder = CSharp.File().NullableEnable().Namespace("Example", n => n
+            .Class("Repo", c => c.Public()
+                .BaseType("System.Collections.Generic.List<TValue>")
+                .BaseType("System.Collections.Generic.IEnumerable<TValue>")
+                .TypeParameter("TKey", t => t.Constraint("notnull"))
+                .TypeParameter("TValue", t => t.Constraint("class").Constraint("new()"))));
+
+        OutputAssert.Equal(
+            "#nullable enable\n\nnamespace Example\n{\n    public class Repo<TKey, TValue> : System.Collections.Generic.List<TValue>, System.Collections.Generic.IEnumerable<TValue> where TKey : notnull where TValue : class, new()\n    {\n    }\n}\n",
+            builder.ToString());
+        CompilationAssert.NoErrors(builder.ToString());
+    }
+
     [Theory]
     [InlineData("Foo", "class Foo\n{\n}\n")]
     [InlineData("class", "class @class\n{\n}\n")]

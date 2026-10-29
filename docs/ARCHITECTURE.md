@@ -21,7 +21,7 @@ tests/Codrio.Tests/            # xUnit v3, net10.0;net48, Microsoft.CodeAnalysis
 
 ## 레이어 규칙
 - 빌더가 곧 모델이다. 빌더는 상태를 internal 필드로 들고 `internal void Write(CodeWriter)`로 자기 자신을 렌더링한다. 빌더와 1:1로 대응하는 모델 노드 계층을 따로 만들지 않는다. 이유: 같은 구조를 두 번 정의하지 않는다.
-- `ToString()`은 새 `CodeWriter`를 만들어 `Write`를 호출한 결과다. 모든 빌더가 같은 방식이다.
+- `ToString()`은 새 `CodeWriter`를 만들어 `Write`를 호출한 결과다. 모든 빌더가 같은 방식이다. 예외: 한 줄 안에 들어가는 조각만 만드는 빌더(예: `TypeParameterBuilder`)는 `CodeWriter` 없이 조각 문자열을 만드는 internal 메서드를 두고, `ToString()`은 그 문자열을 줄바꿈 없이 돌려준다. 담는 빌더가 그 문자열을 자기 줄에 넣는다.
 - 들여쓰기, 줄바꿈, 블록 열고 닫기는 `CodeWriter`만 한다. 빌더는 공백이나 `\n`을 직접 이어 붙이지 않는다.
 - 공통 기능(접근 제한자, 수식어, attribute, 문서, 제네릭 매개변수)은 `TypeBuilder<TSelf>` 같은 제네릭 기반 클래스에 두고 `TSelf`를 반환해서 체이닝 타입을 유지한다. 멤버 빌더도 같은 방식이다.
 - `src/Codrio`는 `Microsoft.CodeAnalysis`를 참조하지 않는다. Roslyn은 테스트 프로젝트에서만 쓴다.

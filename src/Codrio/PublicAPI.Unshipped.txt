@@ -28,6 +28,7 @@ Codrio.TypeBuilder<TSelf>.Public() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>
 Codrio.TypeDeclarationBuilder<TSelf>.Abstract() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.ClassBuilder! classBuilder) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.BaseType(string! type) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Partial() -> TSelf!
@@ -35,9 +36,14 @@ Codrio.TypeDeclarationBuilder<TSelf>.Raw(string! code) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.ReadOnly() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Sealed() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Static() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> TSelf!
+Codrio.TypeParameterBuilder
+Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParameterBuilder!
 override Codrio.FileBuilder.ToString() -> string!
 override Codrio.NamespaceBuilder.ToString() -> string!
 override Codrio.TypeBuilder<TSelf>.ToString() -> string!
+override Codrio.TypeParameterBuilder.ToString() -> string!
 static Codrio.CSharp.Class(string! name) -> Codrio.ClassBuilder!
 static Codrio.CSharp.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> Codrio.ClassBuilder!
 static Codrio.CSharp.File() -> Codrio.FileBuilder!
