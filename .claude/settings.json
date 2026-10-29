@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run .claude/skills/harness/scripts/harness.py *)",
+      "PowerShell(uv run .claude/skills/harness/scripts/harness.py *)",
+      "Edit(/.harness/**)",
+      "Bash(git branch -a)",
+      "Bash(git log *)",
+      "Bash(git show *)"
+    ]
+  }
+}

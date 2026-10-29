@@ -1,0 +1,11 @@
+# 하네스는 스텝을 `git add -A`로 커밋하므로 빌드·테스트 산출물은 여기서 제외합니다.
+# 스택이 정해지면 그에 맞게 추가하세요.
+__pycache__/
+.pytest_cache/
+node_modules/
+dist/
+build/
+coverage/
+
+# Claude Code 개인 설정
+.claude/settings.local.json
