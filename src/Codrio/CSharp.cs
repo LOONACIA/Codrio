@@ -147,4 +147,54 @@ public static class CSharp
         configure(builder);
         return builder;
     }
+
+    /// <summary>Creates an empty record declaration.</summary>
+    /// <param name="name">The record identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new record builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static RecordBuilder Record(string name) => new(name, false);
+
+    /// <summary>Creates a record builder and configures it immediately.</summary>
+    /// <param name="name">The record identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured record builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static RecordBuilder Record(string name, Action<RecordBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Record(name);
+        configure(builder);
+        return builder;
+    }
+
+    /// <summary>Creates an empty record struct declaration.</summary>
+    /// <param name="name">The record struct identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new record struct builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static RecordBuilder RecordStruct(string name) => new(name, true);
+
+    /// <summary>Creates a record struct builder and configures it immediately.</summary>
+    /// <param name="name">The record struct identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured record struct builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static RecordBuilder RecordStruct(string name, Action<RecordBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = RecordStruct(name);
+        configure(builder);
+        return builder;
+    }
 }

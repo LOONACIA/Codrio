@@ -181,6 +181,51 @@ public sealed class FileBuilder
         return this;
     }
 
+    /// <summary>Adds an empty top-level record declaration.</summary>
+    /// <param name="name">The record identifier. Reserved keywords are escaped.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder Record(string name) => Add(CSharp.Record(name));
+
+    /// <summary>Immediately configures a new record builder and adds it as a top-level declaration.</summary>
+    /// <param name="name">The record identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder Record(string name, Action<RecordBuilder> configure) => Add(CSharp.Record(name, configure));
+
+    /// <summary>Adds an empty top-level record struct declaration.</summary>
+    /// <param name="name">The record struct identifier. Reserved keywords are escaped.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder RecordStruct(string name) => Add(CSharp.RecordStruct(name));
+
+    /// <summary>Immediately configures a new record struct builder and adds it as a top-level declaration.</summary>
+    /// <param name="name">The record struct identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public FileBuilder RecordStruct(string name, Action<RecordBuilder> configure) => Add(CSharp.RecordStruct(name, configure));
+
+    /// <summary>Adds the supplied record builder by reference without copying it.</summary>
+    /// <param name="recordBuilder">The record builder to add.</param>
+    /// <returns>This file builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="recordBuilder"/> is null.</exception>
+    public FileBuilder Add(RecordBuilder recordBuilder)
+    {
+        if (recordBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(recordBuilder));
+        }
+
+        items.Add(recordBuilder.Write);
+        return this;
+    }
+
     /// <summary>Adds unvalidated source text, normalizing CRLF line endings to LF.</summary>
     /// <param name="code">The source text to write as one or more lines.</param>
     /// <returns>This file builder.</returns>

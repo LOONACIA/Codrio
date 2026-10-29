@@ -113,6 +113,51 @@ public sealed class NamespaceBuilder
         return this;
     }
 
+    /// <summary>Adds an empty record declaration.</summary>
+    /// <param name="name">The record identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Record(string name) => Add(CSharp.Record(name));
+
+    /// <summary>Immediately configures a new record builder and adds it to the namespace.</summary>
+    /// <param name="name">The record identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Record(string name, Action<RecordBuilder> configure) => Add(CSharp.Record(name, configure));
+
+    /// <summary>Adds an empty record struct declaration.</summary>
+    /// <param name="name">The record struct identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder RecordStruct(string name) => Add(CSharp.RecordStruct(name));
+
+    /// <summary>Immediately configures a new record struct builder and adds it to the namespace.</summary>
+    /// <param name="name">The record struct identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder RecordStruct(string name, Action<RecordBuilder> configure) => Add(CSharp.RecordStruct(name, configure));
+
+    /// <summary>Adds the supplied record builder by reference without copying it.</summary>
+    /// <param name="recordBuilder">The record builder to add.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="recordBuilder"/> is null.</exception>
+    public NamespaceBuilder Add(RecordBuilder recordBuilder)
+    {
+        if (recordBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(recordBuilder));
+        }
+
+        items.Add(recordBuilder.Write);
+        return this;
+    }
+
     internal void Write(CodeWriter writer)
     {
         if (fileScoped)
