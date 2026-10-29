@@ -1,0 +1,521 @@
+id: type-builders
+goal: >
+  PRD 핵심 기능 2(타입 빌더)를 생성 코드용 attribute·Doc과 System.Type 오버로드를 뺀 범위로 구현한다.
+  최소 ClassBuilder를 `TSelf`를 반환하는 제네릭 기반 클래스 계층(`TypeBuilder<TSelf>` → `TypeDeclarationBuilder<TSelf>`
+  → `ClassOrStructBuilder<TSelf>`) 위로 옮기고, 접근 제한자, 고정 순서 수식어, 기반 타입·인터페이스 목록, 제네릭
+  매개변수와 제약, 중첩 타입, Raw, 주 생성자 매개변수(뒤 작업에서 재사용할 ParameterBuilder)를 공통 기능으로 둔다.
+  종류별 전용 빌더로 ClassBuilder, StructBuilder, InterfaceBuilder, RecordBuilder(record class·record struct, 본문
+  항목이 없으면 `;`), EnumBuilder(기반 형식, 문자열 값 멤버)를 만들고, 새 타입 빌더는 `CSharp` 진입점·File·Namespace·
+  중첩 위치에서 람다와 Add()로 만들 수 있다. 완료는 기능마다 기대 문자열 정확 일치 테스트와 완결 파일의 Roslyn 오류
+  진단 0개 테스트가 있고, `dotnet build Codrio.slnx -c Release`와 `dotnet test Codrio.slnx`가 net10.0·net48에서
+  통과하며, 새 공개 API가 영어 XML 문서와 PublicAPI.Unshipped.txt 항목을 갖는 상태다. 필드·메서드 같은 멤버 빌더와
+  본문 빌더, 생성 코드용 attribute·Doc, System.Type·제네릭 오버로드는 이 계획에서 하지 않는다.
+approved: true
+branch_prefix: feat
+max_attempts: 3
+ac_timeout_sec: 900
+steps:
+  - id: s1-type-builder-base
+    title: add generic type builder bases with access modifiers, modifiers, nested classes and Raw
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·5·6·7, "범위 밖"), docs/ARCHITECTURE.md("레이어 규칙", "횡단 관심사"),
+      docs/ADR.md(ADR-002·003·006), src/Codrio/Builders/ClassBuilder.cs, src/Codrio/Builders/FileBuilder.cs(빌더 패턴과
+      XML 문서 문체), src/Codrio/Builders/NamespaceBuilder.cs, src/Codrio/CSharp.cs, src/Codrio/Rendering/CodeWriter.cs,
+      src/Codrio/Rendering/Identifier.cs, src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/ClassBuilderTests.cs,
+      tests/Codrio.Tests/TestSupport/OutputAssert.cs, tests/Codrio.Tests/TestSupport/CompilationAssert.cs.
+
+      이름과 빈 본문만 렌더링하는 지금의 ClassBuilder를 `TSelf`를 반환하는 제네릭 기반 클래스 위로 옮기고, 접근 제한자,
+      수식어, 타입 본문 항목(중첩 class, Raw)을 추가한다. 이 계획 전체의 타입 빌더 계층은
+      `TypeBuilder<TSelf>`(enum 포함 모든 타입 종류) → `TypeDeclarationBuilder<TSelf>`(class·struct·interface·record) →
+      `ClassOrStructBuilder<TSelf>`(class·struct·record, 스텝 s5)이고, EnumBuilder(스텝 s7)는 `TypeBuilder<EnumBuilder>`를
+      직접 상속한다. 이 스텝은 앞의 둘과 ClassBuilder만 만든다.
+
+      공개 API(모두 `namespace Codrio;`, 파일은 src/Codrio/Builders/):
+      - TypeBuilder.cs: `public abstract class TypeBuilder<TSelf> where TSelf : TypeBuilder<TSelf>`.
+        internal 생성자 `TypeBuilder(string name)`에서 `Identifier.ValidateAndEscape(name, nameof(name))`로 이름을
+        검증·이스케이프해 internal 필드에 둔다(예외의 ParamName은 지금처럼 `name`).
+        `TSelf Public()`, `TSelf Internal()`, `TSelf Protected()`, `TSelf Private()`, `TSelf ProtectedInternal()`,
+        `TSelf PrivateProtected()`: 접근 제한자 문자열 하나(`public`, `internal`, `protected`, `private`,
+        `protected internal`, `private protected`)를 internal 필드에 저장한다. 호출하지 않으면 생략하고, 여러 번 호출하면
+        마지막 호출이 이긴다. `(TSelf)this`를 반환한다.
+        `internal abstract void Write(CodeWriter writer)`, `public override string ToString()`(새 CodeWriter에 Write한 결과).
+        수식어와 본문 항목을 여기 두지 마라. 이유: EnumBuilder도 이 클래스를 상속하는데 C#은 enum에 static·abstract·
+        sealed·readonly·partial과 중첩 타입을 허용하지 않는다(ADR-003: 허용하지 않는 것은 메서드가 없어야 한다).
+      - TypeDeclarationBuilder.cs: `public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
+        where TSelf : TypeDeclarationBuilder<TSelf>`. internal 생성자 `TypeDeclarationBuilder(string keyword, string name)`:
+        타입 키워드(`class` 등)는 파생 클래스가 넘긴다.
+        수식어 `TSelf Static()`, `TSelf Abstract()`, `TSelf Sealed()`, `TSelf ReadOnly()`, `TSelf Partial()`: internal bool
+        상태를 켠다. 여러 번 호출해도 한 번만 출력한다.
+        본문 항목 `TSelf Class(string name)`, `TSelf Class(string name, Action<ClassBuilder> configure)`,
+        `TSelf Add(ClassBuilder classBuilder)`, `TSelf Raw(string code)`. 항목은 FileBuilder처럼 추가 순서를 지키는
+        `internal readonly List<Action<CodeWriter>> items`에 담는다(Add는 인스턴스를 복사하지 않고 `classBuilder.Write`를
+        담는다, ADR-006. Raw는 `CodeWriter.WriteLine`으로 여러 줄을 처리한다). 람다는 호출 시점에 새 빌더로 즉시 한 번 실행한다.
+        `internal override void Write(CodeWriter writer)`가 선언 줄, `{`, 한 단계 들여쓴 항목들(사이에 빈 줄 정확히 1개),
+        `}`을 CodeWriter 메서드로 쓴다.
+      - ClassBuilder.cs: `public sealed class ClassBuilder : TypeDeclarationBuilder<ClassBuilder>`, internal 생성자
+        `ClassBuilder(string name)`가 키워드 `class`를 넘긴다. 지금 ClassBuilder에 있는 name 필드·Write·ToString은 기반
+        클래스로 옮기고 지운다.
+
+      구현 규칙:
+      - 공개 abstract 제네릭 기반 클래스는 ADR-003과 ARCHITECTURE "레이어 규칙"이 요구하는 것이다. 그 밖의 렌더링용 공개
+        인터페이스, `Kind` 값으로 분기하는 단일 빌더, 빌더와 1:1로 대응하는 Node/Model 클래스는 만들지 마라. 이유: ADR-002·003.
+      - 기반 클래스의 상태와 훅은 protected가 아니라 internal로 둔다. 이유: protected 멤버는 공개 API 표면(PublicAPI.txt)에
+        들어가고 외부 파생을 허용하게 된다.
+      - 람다를 받는 메서드는 람다 없는 오버로드와 짝으로 두고 선택적 매개변수(`= null`)를 쓰지 마라. 이유: PublicApiAnalyzers
+        RS0026/RS0027 경고가 오류이고 뒤 작업의 오버로드 추가와 충돌한다. null 인자는 ArgumentNullException(ParamName은
+        매개변수 이름). 들여쓰기·줄바꿈·중괄호는 CodeWriter로만 쓰고 빌더 코드에 `"\n"`이나 들여쓰기 공백을 쓰지 마라.
+      - src/Codrio/CSharp.cs, FileBuilder.cs, NamespaceBuilder.cs는 고치지 않는다. ClassBuilder가 계속 internal
+        `Write(CodeWriter)`를 가지므로 `items.Add(classBuilder.Write)`가 그대로 동작해야 한다. 고쳐야 한다면 decisions에 이유를 적는다.
+
+      출력 규칙:
+      - 선언 줄: `[접근 제한자 ][static ][abstract ][sealed ][readonly ][partial ]class <이름>`. 수식어는 호출 순서와
+        무관하게 이 고정 순서이고 partial은 항상 타입 키워드 바로 앞이다. 이유: C#은 partial이 타입 키워드 바로 앞에 있어야
+        컴파일되고, 나머지는 .NET 기본 수식어 순서다. 조합 유효성(`static sealed` 등)은 검사하지 않는다(PRD 범위 밖).
+      - 예: `CSharp.Class("Outer", c => c.Partial().Static().Public().Class("Inner", i => i.Private()).Raw("// raw"))` →
+        `public static partial class Outer\n{\n    private class Inner\n    {\n    }\n\n    // raw\n}\n`.
+        아무것도 호출하지 않은 클래스는 지금처럼 `class Foo\n{\n}\n`.
+      - 중첩 빌더의 ToString()은 들여쓰기 0에서 자기 조각만 렌더링한다.
+
+      문서와 PublicAPI: 모든 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception)를 달고, 제네릭 기반
+      클래스에는 `<typeparam name="TSelf">`도 단다. 이유: CS1591과 CS1712(typeparam 태그 누락) 경고가 오류다. 새 공개 타입의
+      remarks에 빌더가 가변이며 스레드 안전하지 않다고 적는다. 새 공개 심볼은 RS0016 메시지의 문자열 그대로
+      src/Codrio/PublicAPI.Unshipped.txt에 추가하고, 더 이상 존재하지 않는 `override Codrio.ClassBuilder.ToString() -> string!`
+      줄은 지운다(남기면 RS0017). PublicAPI.Shipped.txt는 건드리지 마라. 이유: 0.1.0은 아직 배포 전이다.
+
+      테스트(tests/Codrio.Tests/Builders/ClassBuilderTests.cs에 추가): `OutputAssert.Equal`로 접근 제한자 6개 각각(Theory),
+      마지막 호출이 이김, 호출하지 않으면 생략, 수식어 각각, 다섯 수식어를 역순으로 호출해도
+      `public static abstract sealed readonly partial class Foo`(무효 조합이므로 문자열 비교만), 수식어 중복 호출, 람다
+      있는/없는 중첩 class와 `Add(CSharp.Class(...))`, 2단계 중첩의 들여쓰기, 중첩 class와 Raw가 섞인 항목 순서와 빈 줄,
+      여러 줄 Raw의 줄별 들여쓰기와 `\r\n` 정규화, 중첩 빌더의 ToString(), Add 뒤에 바꾼 중첩 빌더 변경이 출력에 반영됨,
+      모든 체이닝 메서드가 같은 인스턴스를 반환(`Assert.Same`), 잘못된 중첩 class 이름이 호출 시점에 ArgumentException
+      (ParamName `name`)이고 람다가 실행되지 않음, null 인자 ArgumentNullException(`name`, `configure`, `classBuilder`, `code`).
+      Add의 null 검사는 처음부터 `Add((ClassBuilder)null!)`로 캐스트한다. 이유: 뒤 스텝이 Add 오버로드를 추가하면 캐스트 없는
+      `null!`은 CS0121로 모호해진다.
+      `CompilationAssert.NoErrors`: (a) `public partial class Outer` 안에 접근 제한자 6개를 각각 쓴 중첩 class와 Raw 주석,
+      (b) FileBuilder로 만든 `public static partial class`, `internal sealed class`, `public abstract partial class`가 든 완결 파일.
+      기존 테스트의 기대값은 바꾸지 마라. 이유: 기존 출력 규칙은 그대로여야 한다.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도
+      net48로 빌드되는데 그 대상에는 IsExternalInit가 없다. src/Codrio에서도 record·init을 쓰거나 Polyfills를 만들지 마라.
+      이유: 이 계획의 코드는 polyfill이 필요 없다.
+
+      하지 마라: BaseType·TypeParameter(이유: 스텝 s2), struct·interface·record·enum 빌더와 그 진입점(이유: 스텝 s3 이후),
+      PrimaryParameter(이유: 스텝 s5), new·unsafe·ref·file 같은 다른 수식어(이유: 작업 범위는 static·abstract·sealed·
+      readonly·partial이다), 멤버 빌더·attribute·Doc·System.Type 오버로드(이유: 뒤 작업).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가
+      세션 종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/TypeBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/Builders/ClassBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/ClassBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s2-base-types-generics
+    title: add base type lists and generic type parameters with constraints
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·5), docs/ARCHITECTURE.md("레이어 규칙"), docs/ADR.md(ADR-003·004·005),
+      src/Codrio/Builders/TypeBuilder.cs, src/Codrio/Builders/TypeDeclarationBuilder.cs, src/Codrio/Builders/ClassBuilder.cs,
+      src/Codrio/Rendering/Identifier.cs, src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/ClassBuilderTests.cs.
+
+      `TypeDeclarationBuilder<TSelf>`에 기반 타입·인터페이스 목록과 제네릭 타입 매개변수·제약을 추가한다. 기존 빌더 패턴
+      (`namespace Codrio;`, internal 생성자와 internal 상태, `TSelf` 반환, 람다 있는/없는 오버로드 짝, 선택적 매개변수 금지,
+      람다 즉시 실행, null 인자 ArgumentNullException, 이름은 받는 시점에 `Identifier.ValidateAndEscape(name, nameof(name))`)을 따른다.
+
+      공개 API:
+      - `TypeDeclarationBuilder<TSelf>`: `TSelf BaseType(string type)`(기반 클래스나 인터페이스 하나를 목록 끝에 추가),
+        `TSelf TypeParameter(string name)`, `TSelf TypeParameter(string name, Action<TypeParameterBuilder> configure)`.
+      - 새 src/Codrio/Builders/TypeParameterBuilder.cs: `public sealed class TypeParameterBuilder`, internal 생성자
+        `TypeParameterBuilder(string name)`(이름 검증·이스케이프), `TypeParameterBuilder Constraint(string constraint)`(제약
+        하나를 끝에 추가), `public override string ToString()`.
+
+      출력 규칙:
+      - 타입 문자열(BaseType, Constraint)은 검증 없이 그대로 출력하고 null이면 ArgumentNullException(`type`, `constraint`).
+        이유: ADR-004.
+      - 선언 줄은 한 줄: `<수식어·키워드> <이름>[<T1, T2>][ : <기반1>, <기반2>][ where T1 : <제약1>, <제약2>]...`.
+        타입 매개변수와 기반 타입은 추가 순서로 `, ` 구분한다. 제약이 있는 타입 매개변수마다 타입 매개변수 순서대로
+        ` where <이름> : <제약들>`을 같은 줄 끝에 붙이고, 제약이 없는 타입 매개변수는 where 절을 만들지 않는다. 메서드 호출
+        순서(예: BaseType을 TypeParameter보다 먼저 호출)와 무관하게 이 문법 순서다.
+      - where 절을 별도 줄로 내리지 마라. 이유: 고정 포맷(ADR-005)을 단순하게 유지하고 CodeWriter에 API를 늘리지 않으며,
+        스텝 s6의 `record ...;` 끝맺음과 뒤 작업의 메서드 선언도 한 줄 헤더를 그대로 쓴다.
+      - 예: `CSharp.Class("Repo", c => c.BaseType("Base").BaseType("IRepo").TypeParameter("TKey", t => t.Constraint("notnull"))
+        .TypeParameter("TValue", t => t.Constraint("class").Constraint("new()")).TypeParameter("TOther"))` →
+        `class Repo<TKey, TValue, TOther> : Base, IRepo where TKey : notnull where TValue : class, new()\n{\n}\n`.
+      - TypeParameterBuilder는 한 줄 안의 조각만 만든다. CodeWriter를 쓰지 않고 where 절 문자열을 만드는 internal 메서드를
+        두고, TypeDeclarationBuilder가 그 문자열을 선언 줄에 넣는다. `ToString()`은 제약이 있으면 줄바꿈 없는
+        `where T : class, new()`, 제약이 없으면 빈 문자열을 돌려준다.
+
+      docs/ARCHITECTURE.md: "레이어 규칙"의 "`ToString()`은 새 `CodeWriter`를 만들어 `Write`를 호출한 결과다. 모든 빌더가
+      같은 방식이다." 항목 끝에 다음 문장을 덧붙이고 다른 줄은 바꾸지 마라: "예외: 한 줄 안에 들어가는 조각만 만드는
+      빌더(예: `TypeParameterBuilder`)는 `CodeWriter` 없이 조각 문자열을 만드는 internal 메서드를 두고, `ToString()`은 그
+      문자열을 줄바꿈 없이 돌려준다. 담는 빌더가 그 문자열을 자기 줄에 넣는다." 이유: 이 문서는 코드와 어긋나면 문서를
+      고치도록 되어 있고, 뒤 스텝의 ParameterBuilder도 이 규칙을 따른다.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception)와 TypeParameterBuilder 클래스
+      remarks(가변, 스레드 안전하지 않음). 새 공개 심볼은 RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt에 추가한다.
+      PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트(tests/Codrio.Tests/Builders/ClassBuilderTests.cs에 추가, 새 tests/Codrio.Tests/Builders/TypeParameterBuilderTests.cs):
+      `OutputAssert.Equal`로 기반 타입 1개·여러 개의 순서, 타입 매개변수 1개·여러 개, 제약 1개·여러 개의 순서, 제약 없는
+      매개변수가 섞인 where 절, 호출 순서와 무관한 출력, 접근 제한자·수식어와 함께 쓴 선언 줄, 중첩 class의 제네릭, 키워드
+      타입 매개변수 이름(`class` → `@class`), 잘못된 타입 매개변수 이름이 호출 시점에 ArgumentException(ParamName `name`)이고
+      람다가 실행되지 않음, null 인자(`type`, `name`, `configure`, `constraint`), 람다로 얻은 TypeParameterBuilder의
+      ToString(제약 있음/없음), 체이닝 메서드의 반환 인스턴스(`Assert.Same`).
+      `CompilationAssert.NoErrors`: 제네릭·기반 타입·여러 제약을 모두 쓴 클래스가 든 완결 파일. 참조가 모두 해석되고 멤버
+      구현이 필요 없는 조합을 쓴다(예: 기반 클래스 `System.Collections.Generic.List<TValue>`와 인터페이스
+      `System.Collections.Generic.IEnumerable<TValue>`, 제약 `notnull`과 `class, new()`). 이유: 아직 멤버 빌더가 없어
+      인터페이스 멤버를 구현할 수 없다. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라. 이유: 테스트 프로젝트도 net48로 빌드되는데 IsExternalInit가 없다.
+      하지 마라: 타입 매개변수 variance(`in`/`out`) API(이유: 작업 범위에 없다), CodeWriter 변경(이유: 한 줄 헤더라 필요 없다),
+      `CSharp`의 TypeParameter 진입점(이유: Add 조합은 타입 빌더에만 요구된다), struct·interface·record·enum(이유: 스텝 s3 이후),
+      PrimaryParameter(이유: 스텝 s5).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가
+      세션 종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/Builders/TypeParameterBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - docs/ARCHITECTURE.md
+      - tests/Codrio.Tests/Builders/ClassBuilderTests.cs
+      - tests/Codrio.Tests/Builders/TypeParameterBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s3-struct-builder
+    title: add StructBuilder with entry points in files, namespaces and nested types
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·7), docs/ADR.md(ADR-003·006), src/Codrio/Builders/TypeBuilder.cs,
+      src/Codrio/Builders/TypeDeclarationBuilder.cs, src/Codrio/Builders/ClassBuilder.cs, src/Codrio/CSharp.cs,
+      src/Codrio/Builders/FileBuilder.cs, src/Codrio/Builders/NamespaceBuilder.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/ClassBuilderTests.cs, tests/Codrio.Tests/Builders/NamespaceBuilderTests.cs.
+
+      struct 선언 빌더를 추가하고 class를 만들 수 있는 모든 위치(`CSharp` 진입점, File, Namespace, 타입 안 중첩)에서
+      만들 수 있게 한다. ClassBuilder와 그 진입점이 쓰는 패턴(람다 있는/없는 오버로드 짝, configure null 검사 뒤 새 빌더를
+      만들어 즉시 한 번 실행, 선택적 매개변수 금지, null 인자 ArgumentNullException, Add는 인스턴스를 복사하지 않고 `Write`를
+      항목 목록에 담음)을 그대로 따른다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/StructBuilder.cs: `public sealed class StructBuilder : TypeDeclarationBuilder<StructBuilder>`,
+        internal 생성자 `StructBuilder(string name)`가 키워드 `struct`를 넘긴다. 접근 제한자·수식어·BaseType·TypeParameter·
+        중첩 타입·Raw는 기반 클래스에서 그대로 물려받는다.
+      - `CSharp`: `StructBuilder Struct(string name)`, `StructBuilder Struct(string name, Action<StructBuilder> configure)`.
+      - `FileBuilder`, `NamespaceBuilder`: `Struct(string name)`, `Struct(string name, Action<StructBuilder> configure)`,
+        `Add(StructBuilder structBuilder)`. 각자 자기 자신을 반환하고, class와 같은 항목 목록에 추가 순서대로 들어간다.
+      - `TypeDeclarationBuilder<TSelf>`: `TSelf Struct(string name)`, `TSelf Struct(string name, Action<StructBuilder> configure)`,
+        `TSelf Add(StructBuilder structBuilder)`(중첩 struct).
+
+      출력: `[접근 제한자 ][수식어 ]struct <이름>[<...>][ : ...][ where ...]`, 본문은 class와 같다. 예:
+      `CSharp.Struct("Point", s => s.Partial().ReadOnly().Public())` → `public readonly partial struct Point\n{\n}\n`.
+      기존 class·namespace·file 출력 규칙은 바꾸지 않는다. NamespaceBuilder 클래스 XML summary의 "class declarations"는
+      "type declarations"로 고쳐도 된다.
+
+      기존 테스트: NamespaceBuilder에 Add 오버로드가 늘면 tests/Codrio.Tests/Builders/NamespaceBuilderTests.cs의
+      `builder.Add(null!)`가 CS0121로 모호해진다. 그 호출만 `builder.Add((ClassBuilder)null!)`로 고친다. 그 파일의 다른
+      테스트와 모든 기대값은 바꾸지 마라. 이유: 기존 출력 규칙은 그대로여야 한다.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception), StructBuilder 클래스 remarks
+      (가변, 스레드 안전하지 않음), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목. PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트(새 tests/Codrio.Tests/Builders/StructBuilderTests.cs): `OutputAssert.Equal`로 빈 struct, `CSharp.Struct` 람다
+      있는/없는 경우(람다가 즉시 한 번 실행되고 반환 인스턴스와 같음), 접근 제한자와 `readonly partial` 수식어 순서, 제네릭·
+      제약·기반 인터페이스, `FileBuilder.Struct`/`Add`, `NamespaceBuilder.Struct`/`Add`(블록과 파일 범위), class 안 중첩
+      struct와 struct 안 중첩 class·struct, class·struct·Raw가 섞인 항목 순서, 키워드 이름(`struct` → `@struct`), 잘못된
+      이름이 호출 시점에 ArgumentException(ParamName `name`)이고 람다가 실행되지 않음, null 인자(`name`, `configure`,
+      `structBuilder`), 체이닝 반환값(`Assert.Same`). Add의 null 검사는 `Add((StructBuilder)null!)`처럼 캐스트한다. 이유:
+      뒤 스텝에서 Add 오버로드가 더 늘어난다.
+      `CompilationAssert.NoErrors`: 헤더·using·블록 namespace 안 `public readonly partial struct`, 기반 인터페이스를 가진
+      제네릭 struct, class 안 중첩 struct, 최상위 struct를 쓴 완결 파일. 기반 인터페이스는 멤버 없는 인터페이스를
+      `FileBuilder.Raw("interface IMarker { }")`로 같은 파일에 선언해 쓴다(InterfaceBuilder는 스텝 s4). struct 안의 Raw는
+      주석으로 한다. 이유: readonly struct의 인스턴스 필드는 readonly여야 해서(CS8340) 필드 Raw는 깨지기 쉽다.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라. 이유: 테스트 프로젝트도 net48로 빌드되는데 IsExternalInit가 없다.
+      하지 마라: interface·record·enum(이유: 스텝 s4·s6·s7), PrimaryParameter(이유: 스텝 s5), `ref struct` 같은 struct 전용
+      수식어(이유: 작업 범위에 없다), 기반 클래스의 기존 출력 변경.
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가
+      세션 종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/StructBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/Builders/FileBuilder.cs
+      - src/Codrio/Builders/NamespaceBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/StructBuilderTests.cs
+      - tests/Codrio.Tests/Builders/NamespaceBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s4-interface-builder
+    title: add InterfaceBuilder with entry points in files, namespaces and nested types
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·7), docs/ADR.md(ADR-003·006), src/Codrio/Builders/TypeDeclarationBuilder.cs,
+      src/Codrio/Builders/StructBuilder.cs, src/Codrio/CSharp.cs, src/Codrio/Builders/FileBuilder.cs,
+      src/Codrio/Builders/NamespaceBuilder.cs, src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/StructBuilderTests.cs.
+
+      interface 선언 빌더를 추가한다. 스텝 s3에서 StructBuilder를 추가한 방식(새 빌더 파일, `CSharp`·FileBuilder·
+      NamespaceBuilder·TypeDeclarationBuilder의 람다 있는/없는 메서드와 Add 오버로드, XML 문서, PublicAPI 항목, 테스트 구성)을
+      그대로 따른다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/InterfaceBuilder.cs: `public sealed class InterfaceBuilder : TypeDeclarationBuilder<InterfaceBuilder>`,
+        internal 생성자 `InterfaceBuilder(string name)`가 키워드 `interface`를 넘긴다.
+      - `CSharp`: `InterfaceBuilder Interface(string name)`, `InterfaceBuilder Interface(string name, Action<InterfaceBuilder> configure)`.
+      - `FileBuilder`, `NamespaceBuilder`, `TypeDeclarationBuilder<TSelf>`: `Interface(string name)`,
+        `Interface(string name, Action<InterfaceBuilder> configure)`, `Add(InterfaceBuilder interfaceBuilder)`. 각자 자기
+        자신(TypeDeclarationBuilder는 `TSelf`)을 반환한다.
+      InterfaceBuilder에서 물려받은 수식어 메서드(Static, Sealed 등)를 숨기거나 막지 마라. 이유: 수식어는 공통 기능이고
+      조합 유효성은 검사하지 않는다(PRD "범위 밖", 컴파일러가 잡는다).
+
+      출력: 예: `CSharp.Interface("IRepository", i => i.BaseType("System.IDisposable").TypeParameter("T", t => t.Constraint("class"))
+      .Partial().Public())` → `public partial interface IRepository<T> : System.IDisposable where T : class\n{\n}\n`.
+      본문은 class와 같다(빈 interface도 `{`/`}` 블록).
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서, InterfaceBuilder 클래스 remarks(가변, 스레드 안전하지 않음),
+      RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목. PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트(새 tests/Codrio.Tests/Builders/InterfaceBuilderTests.cs): `OutputAssert.Equal`로 빈 interface, `CSharp.Interface`
+      람다 있는/없는 경우(즉시 한 번 실행, 같은 인스턴스), 접근 제한자와 partial, 제네릭·제약·기반 인터페이스 여러 개,
+      `FileBuilder.Interface`/`Add`, `NamespaceBuilder.Interface`/`Add`, class·struct 안 중첩 interface와 interface 안 중첩
+      class·struct·interface, Raw와 섞인 항목 순서, 키워드 이름(`interface` → `@interface`), 잘못된 이름이 호출 시점에
+      ArgumentException(ParamName `name`)이고 람다 미실행, null 인자(`name`, `configure`, `interfaceBuilder`), 체이닝 반환값.
+      Add의 null 검사는 `Add((InterfaceBuilder)null!)`처럼 캐스트한다.
+      `CompilationAssert.NoErrors`: 헤더·using·namespace 안에 `public partial interface IRepository<T> : System.IDisposable
+      where T : class`, 인터페이스 상속(같은 파일의 다른 interface를 BaseType으로), class 안 중첩 interface, interface 안 중첩
+      class를 쓴 완결 파일. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라. 이유: 테스트 프로젝트도 net48로 빌드되는데 IsExternalInit가 없다.
+      하지 마라: 타입 매개변수 variance(`in`/`out`) API(이유: 작업 범위에 없다), record·enum(이유: 스텝 s6·s7),
+      PrimaryParameter(이유: 스텝 s5에서 class·struct·record에만 둔다), 메서드 같은 멤버(이유: 뒤 작업).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가
+      세션 종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/InterfaceBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/Builders/FileBuilder.cs
+      - src/Codrio/Builders/NamespaceBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/InterfaceBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s5-primary-parameters
+    title: add ParameterBuilder and primary constructor parameters for classes and structs
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2, 핵심 기능 3의 메서드 매개변수 설명, 5), docs/ARCHITECTURE.md("레이어 규칙"의
+      조각 빌더 예외), docs/ADR.md(ADR-003·004), src/Codrio/Builders/TypeDeclarationBuilder.cs,
+      src/Codrio/Builders/TypeParameterBuilder.cs, src/Codrio/Builders/ClassBuilder.cs, src/Codrio/Builders/StructBuilder.cs,
+      src/Codrio/Builders/InterfaceBuilder.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/TypeParameterBuilderTests.cs.
+
+      뒤 작업의 메서드 매개변수에서도 재사용할 ParameterBuilder와, class·struct(다음 스텝의 record 포함)의 주 생성자
+      매개변수 `PrimaryParameter()`를 추가한다. 기존 패턴(람다 있는/없는 오버로드 짝, 선택적 매개변수 금지, 람다 즉시 실행,
+      null 인자 ArgumentNullException, 이름은 받는 시점에 `Identifier.ValidateAndEscape(name, nameof(name))`)을 따른다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/ParameterBuilder.cs: `public sealed class ParameterBuilder`, internal 생성자
+        `ParameterBuilder(string type, string name)`(type null이면 ArgumentNullException `type`, name은 식별자 헬퍼로 검증·
+        이스케이프). `ParameterBuilder Ref()`, `Out()`, `In()`, `Params()`, `This()`: 각 수식어의 internal bool을 켠다(중복
+        호출해도 한 번 출력). `ParameterBuilder Default(string expression)`: 기본값 식, 마지막 호출이 이김, null이면
+        ArgumentNullException(`expression`). `public override string ToString()`.
+      - 새 src/Codrio/Builders/ClassOrStructBuilder.cs: `public abstract class ClassOrStructBuilder<TSelf> :
+        TypeDeclarationBuilder<TSelf> where TSelf : ClassOrStructBuilder<TSelf>`, internal 생성자.
+        `TSelf PrimaryParameter(string type, string name)`, `TSelf PrimaryParameter(string type, string name,
+        Action<ParameterBuilder> configure)`: 추가 순서대로 주 생성자 매개변수 목록에 넣는다.
+      - ClassBuilder와 StructBuilder의 기반 클래스를 `ClassOrStructBuilder<ClassBuilder>`, `ClassOrStructBuilder<StructBuilder>`로
+        바꾼다. InterfaceBuilder는 `TypeDeclarationBuilder<InterfaceBuilder>`를 그대로 상속한다. 이유: C# interface에는 주
+        생성자가 없다(ADR-003: 허용하지 않는 것은 메서드가 없어야 한다).
+
+      출력 규칙:
+      - ParameterBuilder 조각(줄바꿈 없음): `[this ][ref ][out ][in ][params ]<형식> <이름>[ = <기본값 식>]`. 수식어는 호출
+        순서와 무관하게 이 고정 순서이고 조합 유효성은 검사하지 않는다(`this ref`, `this in` 같은 유효한 조합을 쓸 수 있게
+        bool 여러 개로 둔다). 형식과 기본값 식은 그대로 출력한다(ADR-004). docs/ARCHITECTURE.md의 조각 빌더 예외대로
+        CodeWriter 없이 조각 문자열을 만드는 internal 메서드를 두고 ToString()이 그 결과를 돌려준다.
+      - 선언 줄에서 주 생성자 매개변수 목록은 타입 매개변수 목록 바로 뒤, 기반 타입 목록 앞이다:
+        `class Box<T>(T value, int count = 0) : Base where T : class`. 매개변수는 `, `로 구분하고, PrimaryParameter를 호출하지
+        않으면 괄호를 쓰지 않는다. class·struct 본문은 매개변수가 있어도 지금처럼 `{`/`}` 블록이다.
+      - 선언 줄 조립은 TypeDeclarationBuilder 한 곳에 두고, 매개변수 목록은 ClassOrStructBuilder가 override하는 internal
+        virtual 훅(예: 기본값이 빈 문자열인 `internal virtual string ParameterList()`)으로 끼운다. 이유: 선언 줄의 문법 순서를
+        한 곳에서 지키고 InterfaceBuilder에는 공개 메서드가 생기지 않게 한다.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서, ClassOrStructBuilder에 `<typeparam name="TSelf">`(CS1712), 새 공개
+      타입 remarks(가변, 스레드 안전하지 않음), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목. PublicAPI.Shipped.txt는
+      건드리지 마라.
+
+      테스트(새 tests/Codrio.Tests/Builders/ParameterBuilderTests.cs): `OutputAssert.Equal`로 람다로 얻은 ParameterBuilder의
+      ToString — 기본 형태, 수식어 각각, 역순으로 호출한 여러 수식어의 고정 순서, 중복 호출, Default와 마지막 호출이 이김,
+      키워드 이름(`class` → `@class`), 형식 문자열 그대로 출력; class·struct의 PrimaryParameter 람다 있는/없는 경우와 순서,
+      타입 매개변수·기반 타입·where 절과 함께 쓴 선언 줄, PrimaryParameter가 없을 때 기존 출력 유지; 잘못된 이름이 호출
+      시점에 ArgumentException(ParamName `name`)이고 람다 미실행; null 인자(`type`, `name`, `configure`, `expression`);
+      체이닝 반환값(`Assert.Same`); 리플렉션으로 `typeof(InterfaceBuilder)`의 공개 메서드에 `PrimaryParameter`가 없음.
+      `CompilationAssert.NoErrors`: `public class Service(string name, int retries = 3)`, `public readonly struct Point(int x, int y)`,
+      `params int[] values` 매개변수, 같은 파일에 선언한 기반 클래스를 쓰는 제네릭 `class Box<T>(T value) : Base where T : class`를
+      담은 완결 파일. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라. 이유: 테스트 프로젝트도 net48로 빌드되는데 IsExternalInit가 없다.
+      하지 마라: `CSharp`의 Parameter 진입점이나 `Add(ParameterBuilder)`(이유: 작업 범위는 람다로 만드는 매개변수이고, 타입
+      본문 항목의 Add 오버로드와 의미가 섞인다), `scoped`·`ref readonly` 같은 다른 매개변수 수식어(이유: 작업 범위에 없다),
+      RecordBuilder(이유: 스텝 s6), 메서드·생성자 멤버(이유: 뒤 작업).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가
+      세션 종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/ParameterBuilder.cs
+      - src/Codrio/Builders/ClassOrStructBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/Builders/ClassBuilder.cs
+      - src/Codrio/Builders/StructBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/ParameterBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s6-record-builder
+    title: add RecordBuilder for record classes and record structs
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·7), docs/ADR.md(ADR-003·005·006), src/Codrio/Builders/TypeDeclarationBuilder.cs,
+      src/Codrio/Builders/ClassOrStructBuilder.cs, src/Codrio/Builders/StructBuilder.cs, src/Codrio/Builders/NamespaceBuilder.cs
+      (internal bool로 출력 형태를 고르는 예), src/Codrio/CSharp.cs, src/Codrio/Builders/FileBuilder.cs,
+      src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/StructBuilderTests.cs.
+
+      record class와 record struct를 만드는 RecordBuilder를 추가한다. 스텝 s3·s4에서 StructBuilder·InterfaceBuilder를 추가한
+      방식(새 빌더 파일, `CSharp`·FileBuilder·NamespaceBuilder·TypeDeclarationBuilder의 람다 있는/없는 메서드와 Add 오버로드,
+      XML 문서, PublicAPI 항목, 테스트 구성)을 따른다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/RecordBuilder.cs: `public sealed class RecordBuilder : ClassOrStructBuilder<RecordBuilder>`,
+        internal 생성자 `RecordBuilder(string name, bool isStruct)`가 키워드 `record` 또는 `record struct`를 넘긴다.
+        별도의 RecordStructBuilder나 공개 kind 속성을 만들지 마라. 이유: 작업이 둘을 한 RecordBuilder로 정했고 둘은 키워드만
+        다르다(NamespaceBuilder의 internal fileScoped와 같은 방식).
+      - `CSharp`: `RecordBuilder Record(string name)`, `RecordBuilder Record(string name, Action<RecordBuilder> configure)`,
+        `RecordBuilder RecordStruct(string name)`, `RecordBuilder RecordStruct(string name, Action<RecordBuilder> configure)`.
+      - `FileBuilder`, `NamespaceBuilder`, `TypeDeclarationBuilder<TSelf>`: 같은 네 메서드(각자 자기 자신 또는 `TSelf` 반환)와
+        `Add(RecordBuilder recordBuilder)`.
+
+      출력 규칙:
+      - 키워드: Record → `record`(`record class`라고 쓰지 않는다. 이유: C# 9부터 되는 가장 짧은 형태), RecordStruct →
+        `record struct`. partial은 `record` 바로 앞이다: `public readonly partial record struct Point(int X, int Y);`.
+      - 본문 항목(중첩 타입, Raw)이 하나도 없으면 블록 대신 선언 줄 끝에 `;`를 바로 붙인다: `public sealed record Person(string Name);\n`,
+        `record Empty;\n`, `record Box<T>(T Value) where T : class;\n`. 항목이 있으면 class처럼 `{`/`}` 블록이다. 이 규칙은
+        RecordBuilder에만 적용한다. TypeDeclarationBuilder에 internal virtual 훅(예: `internal virtual bool EndsWithSemicolonWhenEmpty => false`)을
+        두고 RecordBuilder만 true로 override한다. class·struct·interface는 항목이 없어도 지금처럼 빈 블록이다.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서, RecordBuilder 클래스 remarks(가변, 스레드 안전하지 않음, 본문 항목이
+      없으면 `;`로 끝남), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목. PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트(새 tests/Codrio.Tests/Builders/RecordBuilderTests.cs): `OutputAssert.Equal`로 빈 record와 빈 record struct(`;`),
+      `CSharp.Record`/`RecordStruct` 람다 있는/없는 경우(즉시 한 번 실행, 같은 인스턴스), 주 생성자 매개변수, 수식어 순서
+      (`public sealed partial record`, `public readonly partial record struct`), 제네릭·where 절 뒤의 `;`, 기반 record,
+      본문 항목이 있으면 블록이 되는 경우(중첩 class, Raw), Add 뒤 항목을 추가하면 `;`에서 블록으로 바뀜, `FileBuilder`·
+      `NamespaceBuilder`·class 안 중첩 위치의 Record/RecordStruct/Add, 키워드 이름(`class` → `@class`), 잘못된 이름이 호출 시점에 ArgumentException(ParamName `name`)이고 람다 미실행, null 인자(`name`,
+      `configure`, `recordBuilder`), 체이닝 반환값. Add의 null 검사는 `Add((RecordBuilder)null!)`처럼 캐스트한다.
+      `CompilationAssert.NoErrors`: namespace 안에 `public abstract partial record Shape;`, `public sealed record Circle(double Radius) : Shape;`,
+      `public readonly record struct Point(int X, int Y);`, `public record Box<T>(T Value) where T : class;`, 본문(중첩 class)이 있는
+      record, class 안 중첩 record를 담은 완결 파일. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도
+      net48로 빌드되는데 IsExternalInit가 없다. src/Codrio에서도 record를 쓰거나 Polyfills를 만들지 마라.
+      하지 마라: class·struct에도 `;` 끝맺음 적용(이유: 작업은 record에만 요구한다), enum(이유: 스텝 s7), 속성·메서드 같은
+      멤버(이유: 뒤 작업).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가
+      세션 종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/RecordBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/Builders/FileBuilder.cs
+      - src/Codrio/Builders/NamespaceBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/RecordBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s7-enum-builder
+    title: add EnumBuilder with underlying type and members
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·5·6·7, 공통 완료 기준), docs/ADR.md(ADR-003·004·006),
+      src/Codrio/Builders/TypeBuilder.cs, src/Codrio/Builders/TypeDeclarationBuilder.cs, src/Codrio/Builders/RecordBuilder.cs,
+      src/Codrio/CSharp.cs, src/Codrio/Builders/FileBuilder.cs, src/Codrio/Builders/NamespaceBuilder.cs,
+      src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Builders/RecordBuilderTests.cs.
+
+      enum 선언 빌더를 추가하고, 이 계획의 모든 타입 종류를 한 파일에 조합하는 통합 테스트로 마무리한다. 진입점·Add·문서·
+      PublicAPI·테스트 구성은 스텝 s3·s4·s6과 같은 방식이다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/EnumBuilder.cs: `public sealed class EnumBuilder : TypeBuilder<EnumBuilder>`, internal 생성자
+        `EnumBuilder(string name)`. `EnumBuilder UnderlyingType(string type)`: 기반 형식, 마지막 호출이 이김, null이면
+        ArgumentNullException(`type`). `EnumBuilder Member(string name)`, `EnumBuilder Member(string name, string value)`: 이름은
+        `Identifier.ValidateAndEscape(name, nameof(name))`로 검증·이스케이프하고 값 식은 그대로 출력한다(null이면
+        ArgumentNullException `value`, ADR-004). `internal override void Write(CodeWriter writer)`.
+      - `CSharp`: `EnumBuilder Enum(string name)`, `EnumBuilder Enum(string name, Action<EnumBuilder> configure)`.
+      - `FileBuilder`, `NamespaceBuilder`, `TypeDeclarationBuilder<TSelf>`: `Enum(string name)`,
+        `Enum(string name, Action<EnumBuilder> configure)`, `Add(EnumBuilder enumBuilder)`.
+      EnumBuilder는 TypeDeclarationBuilder를 상속하지 않으므로 수식어, BaseType, TypeParameter, 중첩 타입, Raw, PrimaryParameter
+      메서드가 없다. 이유: ADR-003, C#은 enum에 접근 제한자 외 수식어·제네릭·중첩 타입·주 생성자를 허용하지 않는다.
+      EnumBuilder에 Raw를 따로 추가하지도 마라. 이유: enum 본문은 쉼표로 구분한 멤버 목록이라 원시 줄이 쉼표 규칙에 낄 수 없다.
+
+      출력 규칙: `[접근 제한자 ]enum <이름>[ : <기반 형식>]`, `{`, 한 단계 들여쓴 멤버 줄(`<이름>` 또는 `<이름> = <값>`, 추가
+      순서), 마지막 멤버를 뺀 모든 멤버 줄 끝에 `,`, 멤버 사이 빈 줄 없음, `}`. 멤버 없는 enum은 `enum E\n{\n}\n`. 예:
+      `CSharp.Enum("Color", e => e.Public().UnderlyingType("byte").Member("Red").Member("Green", "2").Member("Blue"))` →
+      `public enum Color : byte\n{\n    Red,\n    Green = 2,\n    Blue\n}\n`. 렌더링 중 예외를 던지지 마라(ARCHITECTURE 횡단 관심사).
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서, EnumBuilder 클래스 remarks(가변, 스레드 안전하지 않음), RS0016 메시지
+      문자열 그대로 PublicAPI.Unshipped.txt 항목. PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/EnumBuilderTests.cs: `OutputAssert.Equal`로 빈 enum, 멤버 1개(쉼표 없음)·여러 개, 값 있는/
+        없는 멤버, 값 식 그대로(`1 << 2`, `Red | Green`), UnderlyingType과 마지막 호출이 이김, 접근 제한자, `CSharp.Enum` 람다
+        있는/없는 경우(즉시 한 번 실행, 같은 인스턴스), `FileBuilder`·`NamespaceBuilder`·class·struct·interface·record 안 중첩
+        위치의 Enum/Add, 키워드 enum 이름과 멤버 이름(`class` → `@class`), 잘못된 이름(enum, 멤버)이 호출 시점에
+        ArgumentException(ParamName `name`), null 인자(`name`, `configure`, `type`, `value`, `enumBuilder`), 체이닝 반환값, 리플렉션으로
+        `typeof(EnumBuilder)`의 공개 메서드 이름에 `Static`, `Abstract`, `Sealed`, `ReadOnly`, `Partial`, `BaseType`,
+        `TypeParameter`, `PrimaryParameter`, `Class`, `Struct`, `Interface`, `Record`, `RecordStruct`, `Enum`, `Raw`, `Add`가
+        없음. Add의 null 검사는 `Add((EnumBuilder)null!)`처럼 캐스트한다. `CompilationAssert.NoErrors`: 기반 형식·값 식·키워드
+        멤버를 쓴 enum과 class·struct·interface·record 안 중첩 enum이 든 완결 파일.
+      - 새 tests/Codrio.Tests/Builders/TypeBuilderCompositionTests.cs: 헤더·using·블록 namespace에 class·struct·interface·
+        record·record struct·enum을 람다와 `CSharp.*` + `Add()` 두 방식으로 섞고, 접근 제한자·수식어·제네릭과 제약·기반 타입·
+        주 생성자·2단계 중첩·Raw 주석을 모두 쓴 완결 파일 하나의 기대 문자열 정확 일치와 `CompilationAssert.NoErrors`. 그리고
+        같은 내용을 파일 범위 namespace로 만든 파일의 `CompilationAssert.NoErrors`. 참조는 모두 같은 파일이나 BCL로 해석되게
+        한다(PRD 공통 완료 기준).
+      기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라. 이유: 테스트 프로젝트도 net48로 빌드되는데 IsExternalInit가 없다.
+      하지 마라: `[Flags]` 같은 attribute와 enum 멤버별 빌더(이유: attribute·Doc은 뒤 작업), 멤버 값 자동 부여나 이름 중복 검사
+      (이유: 판단하기 애매한 검증은 컴파일러에게 맡긴다), System.Type 오버로드(이유: 마지막 작업).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가
+      세션 종료를 막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/EnumBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/CSharp.cs
+      - src/Codrio/Builders/FileBuilder.cs
+      - src/Codrio/Builders/NamespaceBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/EnumBuilderTests.cs
+      - tests/Codrio.Tests/Builders/TypeBuilderCompositionTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
