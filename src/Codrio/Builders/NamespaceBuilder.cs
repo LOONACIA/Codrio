@@ -4,7 +4,7 @@ using Codrio.Rendering;
 
 namespace Codrio;
 
-/// <summary>Builds a block or file-scoped namespace containing class declarations.</summary>
+/// <summary>Builds a block or file-scoped namespace containing type declarations.</summary>
 /// <remarks>Builders are mutable and are not thread-safe.</remarks>
 public sealed class NamespaceBuilder
 {
@@ -50,6 +50,141 @@ public sealed class NamespaceBuilder
         }
 
         items.Add(classBuilder.Write);
+        return this;
+    }
+
+    /// <summary>Adds an empty struct declaration.</summary>
+    /// <param name="name">The struct identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Struct(string name) => Add(CSharp.Struct(name));
+
+    /// <summary>Immediately configures a new struct builder and adds it to the namespace.</summary>
+    /// <param name="name">The struct identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Struct(string name, Action<StructBuilder> configure) => Add(CSharp.Struct(name, configure));
+
+    /// <summary>Adds the supplied struct builder by reference without copying it.</summary>
+    /// <param name="structBuilder">The struct builder to add.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="structBuilder"/> is null.</exception>
+    public NamespaceBuilder Add(StructBuilder structBuilder)
+    {
+        if (structBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(structBuilder));
+        }
+
+        items.Add(structBuilder.Write);
+        return this;
+    }
+
+    /// <summary>Adds an empty interface declaration.</summary>
+    /// <param name="name">The interface identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Interface(string name) => Add(CSharp.Interface(name));
+
+    /// <summary>Immediately configures a new interface builder and adds it to the namespace.</summary>
+    /// <param name="name">The interface identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Interface(string name, Action<InterfaceBuilder> configure) => Add(CSharp.Interface(name, configure));
+
+    /// <summary>Adds the supplied interface builder by reference without copying it.</summary>
+    /// <param name="interfaceBuilder">The interface builder to add.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="interfaceBuilder"/> is null.</exception>
+    public NamespaceBuilder Add(InterfaceBuilder interfaceBuilder)
+    {
+        if (interfaceBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(interfaceBuilder));
+        }
+
+        items.Add(interfaceBuilder.Write);
+        return this;
+    }
+
+    /// <summary>Adds an empty record declaration.</summary>
+    /// <param name="name">The record identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Record(string name) => Add(CSharp.Record(name));
+
+    /// <summary>Immediately configures a new record builder and adds it to the namespace.</summary>
+    /// <param name="name">The record identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Record(string name, Action<RecordBuilder> configure) => Add(CSharp.Record(name, configure));
+
+    /// <summary>Adds an empty record struct declaration.</summary>
+    /// <param name="name">The record struct identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder RecordStruct(string name) => Add(CSharp.RecordStruct(name));
+
+    /// <summary>Immediately configures a new record struct builder and adds it to the namespace.</summary>
+    /// <param name="name">The record struct identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder RecordStruct(string name, Action<RecordBuilder> configure) => Add(CSharp.RecordStruct(name, configure));
+
+    /// <summary>Adds the supplied record builder by reference without copying it.</summary>
+    /// <param name="recordBuilder">The record builder to add.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="recordBuilder"/> is null.</exception>
+    public NamespaceBuilder Add(RecordBuilder recordBuilder)
+    {
+        if (recordBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(recordBuilder));
+        }
+
+        items.Add(recordBuilder.Write);
+        return this;
+    }
+
+    /// <summary>Adds an empty enum declaration.</summary>
+    /// <param name="name">The enum identifier. Reserved keywords are escaped.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Enum(string name) => Add(CSharp.Enum(name));
+
+    /// <summary>Immediately configures a new enum builder and adds it to the namespace.</summary>
+    /// <param name="name">The enum identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public NamespaceBuilder Enum(string name, Action<EnumBuilder> configure) => Add(CSharp.Enum(name, configure));
+
+    /// <summary>Adds the supplied enum builder by reference without copying it.</summary>
+    /// <param name="enumBuilder">The enum builder to add.</param>
+    /// <returns>This namespace builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="enumBuilder"/> is null.</exception>
+    public NamespaceBuilder Add(EnumBuilder enumBuilder)
+    {
+        if (enumBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(enumBuilder));
+        }
+
+        items.Add(enumBuilder.Write);
         return this;
     }
 
