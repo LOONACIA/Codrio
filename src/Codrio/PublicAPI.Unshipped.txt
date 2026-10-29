@@ -73,6 +73,7 @@ Codrio.IndexerBuilder.Parameter(string! type, string! name, System.Action<Codrio
 Codrio.InterfaceBuilder
 Codrio.MemberBuilder<TSelf>
 Codrio.MemberBuilder<TSelf>.Abstract() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Attribute(string! name, params string![]! arguments) -> TSelf!
 Codrio.MemberBuilder<TSelf>.Internal() -> TSelf!
 Codrio.MemberBuilder<TSelf>.New() -> TSelf!
 Codrio.MemberBuilder<TSelf>.Override() -> TSelf!

@@ -97,6 +97,7 @@ public sealed class DelegateBuilder : MemberBuilder<DelegateBuilder>
 
     internal override void Write(CodeWriter writer)
     {
+        WritePreamble(writer);
         var declaration = RenderModifiers() + "delegate " + returnType + " " + name;
         if (typeParameters.Count > 0)
         {

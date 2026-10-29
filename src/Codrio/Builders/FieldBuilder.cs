@@ -38,6 +38,7 @@ public sealed class FieldBuilder : MemberBuilder<FieldBuilder>
 
     internal override void Write(CodeWriter writer)
     {
+        WritePreamble(writer);
         var declaration = RenderModifiers();
         if (isConst)
         {
