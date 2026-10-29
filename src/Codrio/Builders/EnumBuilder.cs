@@ -60,6 +60,7 @@ public sealed class EnumBuilder : TypeBuilder<EnumBuilder>
 
     internal override void Write(CodeWriter writer)
     {
+        WritePreamble(writer);
         var declaration = accessibility is null ? "" : accessibility + " ";
         declaration += "enum " + name;
         if (underlyingType is not null)

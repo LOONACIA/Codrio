@@ -1,14 +1,17 @@
+using System;
+using System.Collections.Generic;
 using Codrio.Rendering;
 
 namespace Codrio;
 
 /// <summary>Provides the name and accessibility of a type declaration.</summary>
 /// <typeparam name="TSelf">The concrete builder type returned by fluent methods.</typeparam>
-/// <remarks>Builders are mutable and are not thread-safe.</remarks>
+/// <remarks>Builders are mutable and are not thread-safe. Attribute lines precede the declaration in addition order.</remarks>
 public abstract class TypeBuilder<TSelf> where TSelf : TypeBuilder<TSelf>
 {
     internal readonly string name;
     internal string? accessibility;
+    internal readonly List<string> attributes = new();
 
     internal TypeBuilder(string name)
     {
@@ -61,6 +64,25 @@ public abstract class TypeBuilder<TSelf> where TSelf : TypeBuilder<TSelf>
     {
         accessibility = "private protected";
         return (TSelf)this;
+    }
+
+    /// <summary>Adds an attribute before the type declaration.</summary>
+    /// <param name="name">The attribute name, written verbatim without validation, including target prefixes such as <c>return:</c>.</param>
+    /// <param name="arguments">Raw argument strings joined with <c>, </c> inside parentheses. An empty array omits the parentheses.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="arguments"/>, or an element of <paramref name="arguments"/> is null.</exception>
+    public TSelf Attribute(string name, params string[] arguments)
+    {
+        attributes.Add(AttributeSyntax.Render(name, arguments));
+        return (TSelf)this;
+    }
+
+    internal void WritePreamble(CodeWriter writer)
+    {
+        foreach (var attribute in attributes)
+        {
+            writer.WriteLine(attribute);
+        }
     }
 
     internal abstract void Write(CodeWriter writer);

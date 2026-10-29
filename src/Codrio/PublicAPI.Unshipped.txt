@@ -143,6 +143,7 @@ Codrio.PropertyOrIndexerBuilder<TSelf>.Set(System.Action<Codrio.AccessorBuilder!
 Codrio.RecordBuilder
 Codrio.StructBuilder
 Codrio.TypeBuilder<TSelf>
+Codrio.TypeBuilder<TSelf>.Attribute(string! name, params string![]! arguments) -> TSelf!
 Codrio.TypeBuilder<TSelf>.Internal() -> TSelf!
 Codrio.TypeBuilder<TSelf>.Private() -> TSelf!
 Codrio.TypeBuilder<TSelf>.PrivateProtected() -> TSelf!
