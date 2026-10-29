@@ -341,4 +341,351 @@ public class MemberTypeOverloadTests
 
         CompilationAssert.NoErrors(file.ToString() + "\n" + TypeFixtures.Source);
     }
+
+    [Fact]
+    public void CSharpIndexers_AllOverloadsRenderExpectedNames()
+    {
+        AssertIndexerNames<int>("int");
+        AssertIndexerNames<TimeSpan>("global::System.TimeSpan");
+        AssertIndexerNames<Outer<int>.Inner<string>>("global::Codrio.Tests.Fixtures.Outer<int>.Inner<string>");
+        AssertIndexerNames<int[,][]>("int[,][]");
+        AssertIndexerNames<int?>("global::System.Nullable<int>");
+    }
+
+    private static void AssertIndexerNames<T>(string typeName)
+    {
+        var expected = "" + typeName + " this[] { get; set; }\n";
+        OutputAssert.Equal(expected, CSharp.Indexer(typeName).ToString());
+        OutputAssert.Equal(expected, CSharp.Indexer(typeof(T)).ToString());
+        OutputAssert.Equal(expected, CSharp.Indexer<T>().ToString());
+        var calls = 0;
+        var fromString = CSharp.Indexer(typeName, b => { calls++; b.Public(); });
+        Assert.Equal(1, calls);
+        var fromType = CSharp.Indexer(typeof(T), b => { calls++; b.Public(); });
+        Assert.Equal(2, calls);
+        var fromGeneric = CSharp.Indexer<T>(b => { calls++; b.Public(); });
+        Assert.Equal(3, calls);
+        OutputAssert.Equal("public " + expected, fromString.ToString());
+        OutputAssert.Equal("public " + expected, fromType.ToString());
+        OutputAssert.Equal("public " + expected, fromGeneric.ToString());
+        Assert.Equal(3, calls);
+    }
+
+    [Fact]
+    public void CSharpOperators_AllOverloadsRenderExpectedNames()
+    {
+        AssertOperatorNames<int>("int");
+        AssertOperatorNames<TimeSpan>("global::System.TimeSpan");
+        AssertOperatorNames<Outer<int>.Inner<string>>("global::Codrio.Tests.Fixtures.Outer<int>.Inner<string>");
+        AssertOperatorNames<int[,][]>("int[,][]");
+        AssertOperatorNames<int?>("global::System.Nullable<int>");
+    }
+
+    private static void AssertOperatorNames<T>(string typeName)
+    {
+        var expected = "" + typeName + " operator +();\n";
+        OutputAssert.Equal(expected, CSharp.Operator(typeName, "+").ToString());
+        OutputAssert.Equal(expected, CSharp.Operator(typeof(T), "+").ToString());
+        OutputAssert.Equal(expected, CSharp.Operator<T>("+").ToString());
+        var calls = 0;
+        var fromString = CSharp.Operator(typeName, "+", b => { calls++; b.Public(); });
+        Assert.Equal(1, calls);
+        var fromType = CSharp.Operator(typeof(T), "+", b => { calls++; b.Public(); });
+        Assert.Equal(2, calls);
+        var fromGeneric = CSharp.Operator<T>("+", b => { calls++; b.Public(); });
+        Assert.Equal(3, calls);
+        OutputAssert.Equal("public " + expected, fromString.ToString());
+        OutputAssert.Equal("public " + expected, fromType.ToString());
+        OutputAssert.Equal("public " + expected, fromGeneric.ToString());
+        Assert.Equal(3, calls);
+    }
+
+    [Fact]
+    public void CSharpImplicitOperators_AllOverloadsRenderExpectedNames()
+    {
+        AssertImplicitOperatorNames<int>("int");
+        AssertImplicitOperatorNames<TimeSpan>("global::System.TimeSpan");
+        AssertImplicitOperatorNames<Outer<int>.Inner<string>>("global::Codrio.Tests.Fixtures.Outer<int>.Inner<string>");
+        AssertImplicitOperatorNames<int[,][]>("int[,][]");
+        AssertImplicitOperatorNames<int?>("global::System.Nullable<int>");
+    }
+
+    private static void AssertImplicitOperatorNames<T>(string typeName)
+    {
+        var expected = "implicit operator " + typeName + "();\n";
+        OutputAssert.Equal(expected, CSharp.ImplicitOperator(typeName).ToString());
+        OutputAssert.Equal(expected, CSharp.ImplicitOperator(typeof(T)).ToString());
+        OutputAssert.Equal(expected, CSharp.ImplicitOperator<T>().ToString());
+        var calls = 0;
+        var fromString = CSharp.ImplicitOperator(typeName, b => { calls++; b.Public(); });
+        Assert.Equal(1, calls);
+        var fromType = CSharp.ImplicitOperator(typeof(T), b => { calls++; b.Public(); });
+        Assert.Equal(2, calls);
+        var fromGeneric = CSharp.ImplicitOperator<T>(b => { calls++; b.Public(); });
+        Assert.Equal(3, calls);
+        OutputAssert.Equal("public " + expected, fromString.ToString());
+        OutputAssert.Equal("public " + expected, fromType.ToString());
+        OutputAssert.Equal("public " + expected, fromGeneric.ToString());
+        Assert.Equal(3, calls);
+    }
+
+    [Fact]
+    public void CSharpExplicitOperators_AllOverloadsRenderExpectedNames()
+    {
+        AssertExplicitOperatorNames<int>("int");
+        AssertExplicitOperatorNames<TimeSpan>("global::System.TimeSpan");
+        AssertExplicitOperatorNames<Outer<int>.Inner<string>>("global::Codrio.Tests.Fixtures.Outer<int>.Inner<string>");
+        AssertExplicitOperatorNames<int[,][]>("int[,][]");
+        AssertExplicitOperatorNames<int?>("global::System.Nullable<int>");
+    }
+
+    private static void AssertExplicitOperatorNames<T>(string typeName)
+    {
+        var expected = "explicit operator " + typeName + "();\n";
+        OutputAssert.Equal(expected, CSharp.ExplicitOperator(typeName).ToString());
+        OutputAssert.Equal(expected, CSharp.ExplicitOperator(typeof(T)).ToString());
+        OutputAssert.Equal(expected, CSharp.ExplicitOperator<T>().ToString());
+        var calls = 0;
+        var fromString = CSharp.ExplicitOperator(typeName, b => { calls++; b.Public(); });
+        Assert.Equal(1, calls);
+        var fromType = CSharp.ExplicitOperator(typeof(T), b => { calls++; b.Public(); });
+        Assert.Equal(2, calls);
+        var fromGeneric = CSharp.ExplicitOperator<T>(b => { calls++; b.Public(); });
+        Assert.Equal(3, calls);
+        OutputAssert.Equal("public " + expected, fromString.ToString());
+        OutputAssert.Equal("public " + expected, fromType.ToString());
+        OutputAssert.Equal("public " + expected, fromGeneric.ToString());
+        Assert.Equal(3, calls);
+    }
+
+    [Fact]
+    public void TypeIndexersAndOperators_AllOverloadsPreserveOrderAndReturnSameBuilder()
+    {
+        AssertTypeIndexersAndOperators(CSharp.Class("Sample"), "class");
+        AssertTypeIndexersAndOperators(CSharp.Struct("Sample"), "struct");
+        AssertTypeIndexersAndOperators(CSharp.Interface("Sample"), "interface");
+        AssertTypeIndexersAndOperators(CSharp.Record("Sample"), "record");
+        AssertTypeIndexersAndOperators(CSharp.RecordStruct("Sample"), "record struct");
+    }
+
+    private static void AssertTypeIndexersAndOperators<TSelf>(TSelf builder, string keyword)
+        where TSelf : TypeDeclarationBuilder<TSelf>
+    {
+        var calls = 0;
+        Assert.Same(builder, builder.Indexer("int"));
+        Assert.Same(builder, builder.Indexer("int", b => { calls++; b.Public(); }));
+        Assert.Equal(1, calls);
+        Assert.Same(builder, builder.Indexer(typeof(int)));
+        Assert.Same(builder, builder.Indexer(typeof(int), b => { calls++; b.Public(); }));
+        Assert.Equal(2, calls);
+        Assert.Same(builder, builder.Indexer<int>());
+        Assert.Same(builder, builder.Indexer<int>(b => { calls++; b.Public(); }));
+        Assert.Equal(3, calls);
+        Assert.Same(builder, builder.Add(CSharp.Indexer(typeof(int))));
+        Assert.Same(builder, builder.Add(CSharp.Indexer<int>()));
+        Assert.Same(builder, builder.Operator("int", "+"));
+        Assert.Same(builder, builder.Operator("int", "+", b => { calls++; b.Public(); }));
+        Assert.Equal(4, calls);
+        Assert.Same(builder, builder.Operator(typeof(int), "+"));
+        Assert.Same(builder, builder.Operator(typeof(int), "+", b => { calls++; b.Public(); }));
+        Assert.Equal(5, calls);
+        Assert.Same(builder, builder.Operator<int>("+"));
+        Assert.Same(builder, builder.Operator<int>("+", b => { calls++; b.Public(); }));
+        Assert.Equal(6, calls);
+        Assert.Same(builder, builder.Add(CSharp.Operator(typeof(int), "+")));
+        Assert.Same(builder, builder.Add(CSharp.Operator<int>("+")));
+        Assert.Same(builder, builder.ImplicitOperator("int"));
+        Assert.Same(builder, builder.ImplicitOperator("int", b => { calls++; b.Public(); }));
+        Assert.Equal(7, calls);
+        Assert.Same(builder, builder.ImplicitOperator(typeof(int)));
+        Assert.Same(builder, builder.ImplicitOperator(typeof(int), b => { calls++; b.Public(); }));
+        Assert.Equal(8, calls);
+        Assert.Same(builder, builder.ImplicitOperator<int>());
+        Assert.Same(builder, builder.ImplicitOperator<int>(b => { calls++; b.Public(); }));
+        Assert.Equal(9, calls);
+        Assert.Same(builder, builder.Add(CSharp.ImplicitOperator(typeof(int))));
+        Assert.Same(builder, builder.Add(CSharp.ImplicitOperator<int>()));
+        Assert.Same(builder, builder.ExplicitOperator("int"));
+        Assert.Same(builder, builder.ExplicitOperator("int", b => { calls++; b.Public(); }));
+        Assert.Equal(10, calls);
+        Assert.Same(builder, builder.ExplicitOperator(typeof(int)));
+        Assert.Same(builder, builder.ExplicitOperator(typeof(int), b => { calls++; b.Public(); }));
+        Assert.Equal(11, calls);
+        Assert.Same(builder, builder.ExplicitOperator<int>());
+        Assert.Same(builder, builder.ExplicitOperator<int>(b => { calls++; b.Public(); }));
+        Assert.Equal(12, calls);
+        Assert.Same(builder, builder.Add(CSharp.ExplicitOperator(typeof(int))));
+        Assert.Same(builder, builder.Add(CSharp.ExplicitOperator<int>()));
+        OutputAssert.Equal(keyword + " Sample\n{\n" +
+            "    int this[] { get; set; }\n\n" +
+            "    public int this[] { get; set; }\n\n" +
+            "    int this[] { get; set; }\n\n" +
+            "    public int this[] { get; set; }\n\n" +
+            "    int this[] { get; set; }\n\n" +
+            "    public int this[] { get; set; }\n\n" +
+            "    int this[] { get; set; }\n\n" +
+            "    int this[] { get; set; }\n\n" +
+            "    int operator +();\n\n" +
+            "    public int operator +();\n\n" +
+            "    int operator +();\n\n" +
+            "    public int operator +();\n\n" +
+            "    int operator +();\n\n" +
+            "    public int operator +();\n\n" +
+            "    int operator +();\n\n" +
+            "    int operator +();\n\n" +
+            "    implicit operator int();\n\n" +
+            "    public implicit operator int();\n\n" +
+            "    implicit operator int();\n\n" +
+            "    public implicit operator int();\n\n" +
+            "    implicit operator int();\n\n" +
+            "    public implicit operator int();\n\n" +
+            "    implicit operator int();\n\n" +
+            "    implicit operator int();\n\n" +
+            "    explicit operator int();\n\n" +
+            "    public explicit operator int();\n\n" +
+            "    explicit operator int();\n\n" +
+            "    public explicit operator int();\n\n" +
+            "    explicit operator int();\n\n" +
+            "    public explicit operator int();\n\n" +
+            "    explicit operator int();\n\n" +
+            "    explicit operator int();\n}\n", builder.ToString());
+        Assert.Equal(12, calls);
+    }
+
+    [Fact]
+    public void CSharpIndexersAndOperators_InvalidArgumentsDoNotConfigure()
+    {
+        AssertInvalidIndexerOrOperatorArguments<IndexerBuilder>("type",
+            type => CSharp.Indexer(type), (type, configure) => CSharp.Indexer(type, configure),
+            configure => CSharp.Indexer<int>(configure));
+        AssertInvalidIndexerOrOperatorArguments<OperatorBuilder>("returnType",
+            type => CSharp.Operator(type, "+"), (type, configure) => CSharp.Operator(type, "+", configure),
+            configure => CSharp.Operator<int>("+", configure));
+        AssertInvalidIndexerOrOperatorArguments<OperatorBuilder>("type",
+            type => CSharp.ImplicitOperator(type), (type, configure) => CSharp.ImplicitOperator(type, configure),
+            configure => CSharp.ImplicitOperator<int>(configure));
+        AssertInvalidIndexerOrOperatorArguments<OperatorBuilder>("type",
+            type => CSharp.ExplicitOperator(type), (type, configure) => CSharp.ExplicitOperator(type, configure),
+            configure => CSharp.ExplicitOperator<int>(configure));
+        AssertInvalidOperatorSymbols(
+            (type, symbol) => CSharp.Operator(type, symbol),
+            (type, symbol, configure) => CSharp.Operator(type, symbol, configure),
+            symbol => CSharp.Operator<int>(symbol),
+            (symbol, configure) => CSharp.Operator<int>(symbol, configure));
+    }
+
+    [Fact]
+    public void TypeIndexersAndOperators_InvalidArgumentsPreserveMembers()
+    {
+        AssertInvalidTypeIndexersAndOperators(CSharp.Class("Sample"));
+        AssertInvalidTypeIndexersAndOperators(CSharp.Struct("Sample"));
+        AssertInvalidTypeIndexersAndOperators(CSharp.Interface("Sample"));
+        AssertInvalidTypeIndexersAndOperators(CSharp.Record("Sample"));
+        AssertInvalidTypeIndexersAndOperators(CSharp.RecordStruct("Sample"));
+    }
+
+    private static void AssertInvalidTypeIndexersAndOperators<TSelf>(TSelf builder)
+        where TSelf : TypeDeclarationBuilder<TSelf>
+    {
+        builder.Property("int", "Existing");
+        var before = builder.ToString();
+        AssertInvalidIndexerOrOperatorArguments<IndexerBuilder>("type",
+            type => builder.Indexer(type), (type, configure) => builder.Indexer(type, configure),
+            configure => builder.Indexer<int>(configure));
+        OutputAssert.Equal(before, builder.ToString());
+        AssertInvalidIndexerOrOperatorArguments<OperatorBuilder>("returnType",
+            type => builder.Operator(type, "+"), (type, configure) => builder.Operator(type, "+", configure),
+            configure => builder.Operator<int>("+", configure));
+        OutputAssert.Equal(before, builder.ToString());
+        AssertInvalidIndexerOrOperatorArguments<OperatorBuilder>("type",
+            type => builder.ImplicitOperator(type), (type, configure) => builder.ImplicitOperator(type, configure),
+            configure => builder.ImplicitOperator<int>(configure));
+        OutputAssert.Equal(before, builder.ToString());
+        AssertInvalidIndexerOrOperatorArguments<OperatorBuilder>("type",
+            type => builder.ExplicitOperator(type), (type, configure) => builder.ExplicitOperator(type, configure),
+            configure => builder.ExplicitOperator<int>(configure));
+        OutputAssert.Equal(before, builder.ToString());
+        AssertInvalidOperatorSymbols(
+            (type, symbol) => builder.Operator(type, symbol),
+            (type, symbol, configure) => builder.Operator(type, symbol, configure),
+            symbol => builder.Operator<int>(symbol),
+            (symbol, configure) => builder.Operator<int>(symbol, configure));
+        OutputAssert.Equal(before, builder.ToString());
+    }
+
+    private static void AssertInvalidIndexerOrOperatorArguments<TBuilder>(string paramName,
+        Action<Type> typeOverload, Action<Type, Action<TBuilder>> configuredTypeOverload,
+        Action<Action<TBuilder>> configuredGenericOverload)
+    {
+        var calls = 0;
+        Action<TBuilder> configure = _ => calls++;
+        var invalidTypes = new[] { typeof(List<>), typeof(int).MakeByRefType(), new { Value = 1 }.GetType() };
+        foreach (var type in invalidTypes)
+        {
+            Assert.Throws<ArgumentException>(paramName, () => typeOverload(type));
+            Assert.Throws<ArgumentException>(paramName, () => configuredTypeOverload(type, configure));
+            Assert.Throws<ArgumentException>(paramName, () => configuredTypeOverload(type, null!));
+        }
+
+        Assert.Throws<ArgumentNullException>(paramName, () => typeOverload(null!));
+        Assert.Throws<ArgumentNullException>(paramName, () => configuredTypeOverload(null!, configure));
+        Assert.Throws<ArgumentNullException>(paramName, () => configuredTypeOverload(null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => configuredTypeOverload(typeof(int), null!));
+        Assert.Throws<ArgumentNullException>("configure", () => configuredGenericOverload(null!));
+        Assert.Equal(0, calls);
+    }
+
+    private static void AssertInvalidOperatorSymbols(
+        Action<Type, string> typeOverload, Action<Type, string, Action<OperatorBuilder>> configuredTypeOverload,
+        Action<string> genericOverload, Action<string, Action<OperatorBuilder>> configuredGenericOverload)
+    {
+        var calls = 0;
+        Action<OperatorBuilder> configure = _ => calls++;
+        Assert.Throws<ArgumentNullException>("symbol", () => typeOverload(typeof(int), null!));
+        Assert.Throws<ArgumentNullException>("symbol", () => configuredTypeOverload(typeof(int), null!, configure));
+        Assert.Throws<ArgumentNullException>("symbol", () => genericOverload(null!));
+        Assert.Throws<ArgumentNullException>("symbol", () => configuredGenericOverload(null!, configure));
+        Assert.Throws<ArgumentException>("returnType", () => typeOverload(typeof(List<>), null!));
+        Assert.Throws<ArgumentException>("returnType", () => configuredTypeOverload(typeof(List<>), null!, null!));
+        Assert.Throws<ArgumentNullException>("returnType", () => configuredTypeOverload(null!, null!, null!));
+        Assert.Equal(0, calls);
+    }
+
+    [Fact]
+    public void IndexersAndOperators_RenderExamples()
+    {
+        OutputAssert.Equal("int this[int index] { get; set; }\n",
+            CSharp.Indexer<int>(i => i.Parameter("int", "index")).ToString());
+        OutputAssert.Equal("public static bool operator ==(Money left, Money right) => left.Amount == right.Amount;\n",
+            CSharp.Operator<bool>("==", o => o.Public().Static()
+                .Parameter("Money", "left").Parameter("Money", "right")
+                .Arrow("left.Amount == right.Amount")).ToString());
+        OutputAssert.Equal("implicit operator decimal();\n", CSharp.ImplicitOperator<decimal>().ToString());
+        OutputAssert.Equal("explicit operator global::System.TimeSpan();\n", CSharp.ExplicitOperator(typeof(TimeSpan)).ToString());
+    }
+
+    [Fact]
+    public void CompleteFile_WithIndexerAndOperatorTypeOverloads_Compiles()
+    {
+        var file = CSharp.File().Namespace("App", n => n
+            .Class("Catalog", c => c
+                .Indexer(typeof(Outer<int>.Inner<string>), i => i.Public().Parameter<int>("index").Arrow("null"))
+                .Indexer<int?>(i => i.Public().Parameter<string>("key").Arrow("null"))
+                .Add(CSharp.Indexer<List<string>>(i => i.Public().Parameter<long>("index").Arrow("null"))))
+            .Interface("ICatalog", i => i
+                .Indexer(typeof(Outer<int>.Inner<string>), indexer => indexer.Parameter<int>("index").Get())
+                .Indexer<int?>(indexer => indexer.Parameter<string>("key").Get()))
+            .Struct("Money", s => s
+                .Property<decimal>("Amount", p => p.Public())
+                .Operator(typeof(bool), "==", o => o.Public().Static()
+                    .Parameter("Money", "left").Parameter("Money", "right").Arrow("left.Amount == right.Amount"))
+                .Operator<bool>("!=", o => o.Public().Static()
+                    .Parameter("Money", "left").Parameter("Money", "right").Arrow("left.Amount != right.Amount"))
+                .ImplicitOperator(typeof(decimal), o => o.Public().Static().Parameter("Money", "value").Arrow("value.Amount"))
+                .ImplicitOperator<double>(o => o.Public().Static().Parameter("Money", "value").Arrow("(double)value.Amount"))
+                .ExplicitOperator(typeof(TimeSpan), o => o.Public().Static().Parameter("Money", "value").Arrow("default"))
+                .ExplicitOperator<int>(o => o.Public().Static().Parameter("Money", "value").Arrow("(int)value.Amount"))));
+
+        CompilationAssert.NoErrors(file.ToString() + "\n" + TypeFixtures.Source);
+    }
 }

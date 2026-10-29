@@ -259,16 +259,16 @@ public class OperatorBuilderTests
     public void NullArguments_ThrowWithParameterNamesBeforeConfiguringOrMutating()
     {
         var configured = false;
-        Assert.Throws<ArgumentNullException>("returnType", () => CSharp.Operator(null!, "+"));
-        Assert.Throws<ArgumentNullException>("returnType", () => CSharp.Operator(null!, "+", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("returnType", () => CSharp.Operator((string)null!, "+"));
+        Assert.Throws<ArgumentNullException>("returnType", () => CSharp.Operator((string)null!, "+", _ => configured = true));
         Assert.Throws<ArgumentNullException>("symbol", () => CSharp.Operator("int", null!));
         Assert.Throws<ArgumentNullException>("symbol", () => CSharp.Operator("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Operator("int", "+", null!));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.ImplicitOperator(null!));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.ImplicitOperator(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.ImplicitOperator((string)null!));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.ImplicitOperator((string)null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.ImplicitOperator("int", null!));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.ExplicitOperator(null!));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.ExplicitOperator(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.ExplicitOperator((string)null!));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.ExplicitOperator((string)null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.ExplicitOperator("int", null!));
         var builder = CSharp.Operator("int", "+").Arrow("1");
         Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "value"));
@@ -287,16 +287,16 @@ public class OperatorBuilderTests
     {
         var before = builder.ToString();
         var configured = false;
-        Assert.Throws<ArgumentNullException>("returnType", () => builder.Operator(null!, "+"));
-        Assert.Throws<ArgumentNullException>("returnType", () => builder.Operator(null!, "+", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("returnType", () => builder.Operator((string)null!, "+"));
+        Assert.Throws<ArgumentNullException>("returnType", () => builder.Operator((string)null!, "+", _ => configured = true));
         Assert.Throws<ArgumentNullException>("symbol", () => builder.Operator("int", null!));
         Assert.Throws<ArgumentNullException>("symbol", () => builder.Operator("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Operator("int", "+", null!));
-        Assert.Throws<ArgumentNullException>("type", () => builder.ImplicitOperator(null!));
-        Assert.Throws<ArgumentNullException>("type", () => builder.ImplicitOperator(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.ImplicitOperator((string)null!));
+        Assert.Throws<ArgumentNullException>("type", () => builder.ImplicitOperator((string)null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.ImplicitOperator("int", null!));
-        Assert.Throws<ArgumentNullException>("type", () => builder.ExplicitOperator(null!));
-        Assert.Throws<ArgumentNullException>("type", () => builder.ExplicitOperator(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.ExplicitOperator((string)null!));
+        Assert.Throws<ArgumentNullException>("type", () => builder.ExplicitOperator((string)null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.ExplicitOperator("int", null!));
         Assert.Throws<ArgumentNullException>("operatorBuilder", () => builder.Add((OperatorBuilder)null!));
         Assert.False(configured);

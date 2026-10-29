@@ -232,6 +232,35 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates an indexer declaration with get and set accessors and no parameters.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>A new indexer builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public static IndexerBuilder Indexer(Type type) => Indexer(TypeName.Render(type, nameof(type)));
+
+    /// <summary>Creates an indexer builder and configures it immediately.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured indexer builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public static IndexerBuilder Indexer(Type type, Action<IndexerBuilder> configure) => Indexer(TypeName.Render(type, nameof(type)), configure);
+
+    /// <summary>Creates an indexer declaration with get and set accessors and no parameters.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>A new indexer builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public static IndexerBuilder Indexer<T>() => Indexer(typeof(T));
+
+    /// <summary>Creates an indexer builder and configures it immediately.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured indexer builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public static IndexerBuilder Indexer<T>(Action<IndexerBuilder> configure) => Indexer(typeof(T), configure);
+
     /// <summary>Creates a delegate declaration with a void return type and no parameters.</summary>
     /// <param name="name">The delegate identifier. Reserved keywords are escaped.</param>
     /// <returns>A new delegate builder.</returns>
@@ -295,6 +324,40 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates an operator declaration with no parameters or body.</summary>
+    /// <param name="returnType">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="returnType"/> or <paramref name="symbol"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="returnType"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public static OperatorBuilder Operator(Type returnType, string symbol) => Operator(TypeName.Render(returnType, nameof(returnType)), symbol);
+
+    /// <summary>Creates an operator builder and configures it immediately.</summary>
+    /// <param name="returnType">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="returnType"/>, <paramref name="symbol"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="returnType"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public static OperatorBuilder Operator(Type returnType, string symbol, Action<OperatorBuilder> configure) => Operator(TypeName.Render(returnType, nameof(returnType)), symbol, configure);
+
+    /// <summary>Creates an operator declaration with no parameters or body.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="symbol"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public static OperatorBuilder Operator<T>(string symbol) => Operator(typeof(T), symbol);
+
+    /// <summary>Creates an operator builder and configures it immediately.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="symbol"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public static OperatorBuilder Operator<T>(string symbol, Action<OperatorBuilder> configure) => Operator(typeof(T), symbol, configure);
+
     /// <summary>Creates an implicit conversion operator declaration with no parameters or body.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <returns>A new operator builder.</returns>
@@ -326,6 +389,35 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates an implicit conversion operator declaration with no parameters or body.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public static OperatorBuilder ImplicitOperator(Type type) => ImplicitOperator(TypeName.Render(type, nameof(type)));
+
+    /// <summary>Creates an implicit conversion operator builder and configures it immediately.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public static OperatorBuilder ImplicitOperator(Type type, Action<OperatorBuilder> configure) => ImplicitOperator(TypeName.Render(type, nameof(type)), configure);
+
+    /// <summary>Creates an implicit conversion operator declaration with no parameters or body.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public static OperatorBuilder ImplicitOperator<T>() => ImplicitOperator(typeof(T));
+
+    /// <summary>Creates an implicit conversion operator builder and configures it immediately.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public static OperatorBuilder ImplicitOperator<T>(Action<OperatorBuilder> configure) => ImplicitOperator(typeof(T), configure);
+
     /// <summary>Creates an explicit conversion operator declaration with no parameters or body.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <returns>A new operator builder.</returns>
@@ -356,6 +448,35 @@ public static class CSharp
         configure(builder);
         return builder;
     }
+
+    /// <summary>Creates an explicit conversion operator declaration with no parameters or body.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public static OperatorBuilder ExplicitOperator(Type type) => ExplicitOperator(TypeName.Render(type, nameof(type)));
+
+    /// <summary>Creates an explicit conversion operator builder and configures it immediately.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public static OperatorBuilder ExplicitOperator(Type type, Action<OperatorBuilder> configure) => ExplicitOperator(TypeName.Render(type, nameof(type)), configure);
+
+    /// <summary>Creates an explicit conversion operator declaration with no parameters or body.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>A new operator builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public static OperatorBuilder ExplicitOperator<T>() => ExplicitOperator(typeof(T));
+
+    /// <summary>Creates an explicit conversion operator builder and configures it immediately.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured operator builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public static OperatorBuilder ExplicitOperator<T>(Action<OperatorBuilder> configure) => ExplicitOperator(typeof(T), configure);
 
     /// <summary>Creates a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
