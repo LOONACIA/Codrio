@@ -5,6 +5,202 @@ namespace Codrio.Tests;
 
 public class MethodBuilderTests
 {
+    [Fact]
+    public void Parameters_RenderInAddedOrder()
+    {
+        var builder = CSharp.Method("Save").Parameter("string", "path");
+
+        OutputAssert.Equal("void Save(string path);\n", builder.ToString());
+        builder.Parameter("bool", "overwrite", p => p.Default("false")).Parameter("int", "retries");
+        OutputAssert.Equal("void Save(string path, bool overwrite = false, int retries);\n", builder.ToString());
+    }
+
+    [Fact]
+    public void ParameterModifiers_RenderConfiguredFragments()
+    {
+        var builder = CSharp.Method("Update")
+            .Parameter("int", "count", p => p.Ref())
+            .Parameter("int", "value", p => p.Out())
+            .Parameter("int", "delta", p => p.In())
+            .Parameter("object[]", "args", p => p.Params());
+
+        OutputAssert.Equal("void Update(ref int count, out int value, in int delta, params object[] args);\n", builder.ToString());
+        OutputAssert.Equal("public static int Twice(this int value);\n",
+            CSharp.Method("Twice").Public().Static().Returns("int").Parameter("int", "value", p => p.This()).ToString());
+    }
+
+    [Theory]
+    [InlineData("class", "@class")]
+    [InlineData("@class", "@class")]
+    public void ParameterNames_EscapeKeywords(string name, string expected)
+    {
+        OutputAssert.Equal("void Run(int " + expected + ");\n", CSharp.Method("Run").Parameter("int", name).ToString());
+        OutputAssert.Equal("void Run(int " + expected + " = 0);\n",
+            CSharp.Method("Run").Parameter("int", name, p => p.Default("0")).ToString());
+    }
+
+    [Fact]
+    public void TypeParameters_RenderInAddedOrderWithOnlyNonemptyConstraints()
+    {
+        var builder = CSharp.Method("Run").TypeParameter("T");
+
+        OutputAssert.Equal("void Run<T>();\n", builder.ToString());
+        builder.TypeParameter("TValue", t => t.Constraint("class").Constraint("new()"))
+            .TypeParameter("TUnused", _ => { })
+            .TypeParameter("TKey", t => t.Constraint("struct"));
+        OutputAssert.Equal("void Run<T, TValue, TUnused, TKey>() where TValue : class, new() where TKey : struct;\n", builder.ToString());
+    }
+
+    [Theory]
+    [InlineData("class", "@class")]
+    [InlineData("@class", "@class")]
+    public void TypeParameterNames_EscapeKeywordsInDeclarationAndConstraints(string name, string expected)
+    {
+        OutputAssert.Equal("void Run<" + expected + ">();\n", CSharp.Method("Run").TypeParameter(name).ToString());
+        OutputAssert.Equal("void Run<" + expected + ">() where " + expected + " : class;\n",
+            CSharp.Method("Run").TypeParameter(name, t => t.Constraint("class")).ToString());
+    }
+
+    [Fact]
+    public void ParametersAndTypeParameters_RenderInSyntaxOrderRegardlessOfCallOrder()
+    {
+        var first = CSharp.Method("Get", m => m.Public().Returns("T")
+            .TypeParameter("T", t => t.Constraint("class"))
+            .Parameter("string", "key").Parameter("bool", "required", p => p.Default("false")));
+        var second = CSharp.Method("Get").Parameter("string", "key").Returns("T")
+            .Parameter("bool", "required", p => p.Default("false"))
+            .TypeParameter("T", t => t.Constraint("class")).Public();
+        const string expected = "public T Get<T>(string key, bool required = false) where T : class;\n";
+
+        OutputAssert.Equal(expected, first.ToString());
+        OutputAssert.Equal(expected, second.ToString());
+        second.Partial().ReadOnly().Override().Sealed().Abstract().Virtual().New().Static();
+        OutputAssert.Equal("public static new virtual abstract sealed override readonly partial T Get<T>(string key, bool required = false) where T : class;\n", second.ToString());
+    }
+
+    [Fact]
+    public void ParameterConfiguration_RunsImmediatelyOnceAndRetainsBuilders()
+    {
+        var builder = CSharp.Method("Run");
+        ParameterBuilder? parameter = null;
+        TypeParameterBuilder? typeParameter = null;
+        var parameterCalls = 0;
+        var typeParameterCalls = 0;
+        builder.Parameter("int", "value", p =>
+        {
+            parameter = p;
+            parameterCalls++;
+            OutputAssert.Equal("void Run();\n", builder.ToString());
+        });
+        builder.TypeParameter("T", t =>
+        {
+            typeParameter = t;
+            typeParameterCalls++;
+            OutputAssert.Equal("void Run(int value);\n", builder.ToString());
+        });
+
+        Assert.NotNull(parameter);
+        Assert.NotNull(typeParameter);
+        Assert.Equal(1, parameterCalls);
+        Assert.Equal(1, typeParameterCalls);
+        OutputAssert.Equal("void Run<T>(int value);\n", builder.ToString());
+        parameter.Default("7");
+        typeParameter.Constraint("class");
+        OutputAssert.Equal("void Run<T>(int value = 7) where T : class;\n", builder.ToString());
+        OutputAssert.Equal("void Run<T>(int value = 7) where T : class;\n", builder.ToString());
+        Assert.Equal(1, parameterCalls);
+        Assert.Equal(1, typeParameterCalls);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("1value")]
+    [InlineData("a.b")]
+    [InlineData("a b")]
+    [InlineData("a-b")]
+    [InlineData("@@value")]
+    public void InvalidParameterNames_ThrowAtCallTimeBeforeConfiguringOrAdding(string name)
+    {
+        var builder = CSharp.Method("Run");
+        var configured = false;
+
+        Assert.Throws<ArgumentException>("name", () => builder.Parameter("int", name));
+        Assert.Throws<ArgumentException>("name", () => builder.Parameter("int", name, _ => configured = true));
+        Assert.Throws<ArgumentException>("name", () => builder.TypeParameter(name));
+        Assert.Throws<ArgumentException>("name", () => builder.TypeParameter(name, _ => configured = true));
+        Assert.False(configured);
+        OutputAssert.Equal("void Run();\n", builder.ToString());
+    }
+
+    [Fact]
+    public void NullParameterArguments_ThrowBeforeConfiguringOrAdding()
+    {
+        var builder = CSharp.Method("Run");
+        var configured = false;
+
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "value"));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "value", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!));
+        Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter("int", "value", null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("name", () => builder.TypeParameter(null!));
+        Assert.Throws<ArgumentNullException>("name", () => builder.TypeParameter(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.TypeParameter("T", null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.TypeParameter(null!, null!));
+        Assert.False(configured);
+        OutputAssert.Equal("void Run();\n", builder.ToString());
+    }
+
+    [Fact]
+    public void ParameterConfigurationFailure_DoesNotAddParameter()
+    {
+        var builder = CSharp.Method("Run");
+
+        Assert.Throws<InvalidOperationException>(() => builder.Parameter("int", "value", _ => throw new InvalidOperationException()));
+        Assert.Throws<InvalidOperationException>(() => builder.TypeParameter("T", _ => throw new InvalidOperationException()));
+        OutputAssert.Equal("void Run();\n", builder.ToString());
+    }
+
+    [Fact]
+    public void ParameterMethods_ReturnSameMethodBuilder()
+    {
+        var builder = CSharp.Method("Run");
+
+        Assert.Same(builder, builder.Parameter("int", "value"));
+        Assert.Same(builder, builder.Parameter("bool", "enabled", p => p.Default("true")));
+        Assert.Same(builder, builder.TypeParameter("T"));
+        Assert.Same(builder, builder.TypeParameter("TValue", t => t.Constraint("class")));
+    }
+
+    [Fact]
+    public void CompleteFile_RendersParametersAndGenericConstraintsAndCompiles()
+    {
+        var file = CSharp.File().Using("System")
+            .Interface("IStore", i => i
+                .Method("Get", m => m.Returns("T").TypeParameter("T", t => t.Constraint("class")).Parameter("string", "key"))
+                .Method("TryGet", m => m.Returns("bool").Parameter("string", "key").Parameter("int", "value", p => p.Out()))
+                .Method("Log", m => m.Parameter("string", "format").Parameter("object[]", "args", p => p.Params()))
+                .Method("Update", m => m.Parameter("int", "count", p => p.Ref()).Parameter("int", "delta", p => p.In()))
+                .Add(CSharp.Method("Create").Returns("TValue")
+                    .TypeParameter("TValue", t => t.Constraint("class").Constraint("IDisposable").Constraint("new()"))
+                    .TypeParameter("TKey", t => t.Constraint("struct").Constraint("IComparable<TKey>"))
+                    .Parameter("TKey", "key")))
+            .Class("Store", c => c.Abstract().Method("Save", m => m.Public().Abstract()
+                .Parameter("string", "path").Parameter("bool", "overwrite", p => p.Default("false"))));
+        const string expected =
+            "using System;\n\ninterface IStore\n{\n" +
+            "    T Get<T>(string key) where T : class;\n\n" +
+            "    bool TryGet(string key, out int value);\n\n" +
+            "    void Log(string format, params object[] args);\n\n" +
+            "    void Update(ref int count, in int delta);\n\n" +
+            "    TValue Create<TValue, TKey>(TKey key) where TValue : class, IDisposable, new() where TKey : struct, IComparable<TKey>;\n" +
+            "}\n\nabstract class Store\n{\n    public abstract void Save(string path, bool overwrite = false);\n}\n";
+
+        OutputAssert.Equal(expected, file.ToString());
+        CompilationAssert.NoErrors(file.ToString());
+    }
+
     [Theory]
     [InlineData("Run", "void Run();\n")]
     [InlineData("class", "void @class();\n")]

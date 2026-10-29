@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Codrio.Rendering;
 
 namespace Codrio;
@@ -10,6 +11,8 @@ public sealed class MethodBuilder : MemberBuilder<MethodBuilder>
     internal readonly string name;
     internal string returnType = "void";
     internal bool isPartial;
+    internal readonly List<ParameterBuilder> parameters = new();
+    internal readonly List<TypeParameterBuilder> typeParameters = new();
 
     internal MethodBuilder(string name)
     {
@@ -31,6 +34,68 @@ public sealed class MethodBuilder : MemberBuilder<MethodBuilder>
         return this;
     }
 
+    /// <summary>Adds a parameter to the end of the parameter list.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The parameter identifier. Reserved keywords are escaped.</param>
+    /// <returns>This method builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public MethodBuilder Parameter(string type, string name)
+    {
+        parameters.Add(new ParameterBuilder(type, name));
+        return this;
+    }
+
+    /// <summary>Immediately configures a new parameter builder and adds it to the method.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The parameter identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This method builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public MethodBuilder Parameter(string type, string name, Action<ParameterBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new ParameterBuilder(type, name);
+        configure(builder);
+        parameters.Add(builder);
+        return this;
+    }
+
+    /// <summary>Adds an unconstrained type parameter.</summary>
+    /// <param name="name">The type parameter identifier. Reserved keywords are escaped.</param>
+    /// <returns>This method builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public MethodBuilder TypeParameter(string name)
+    {
+        typeParameters.Add(new TypeParameterBuilder(name));
+        return this;
+    }
+
+    /// <summary>Immediately configures a new type parameter builder and adds it to the declaration.</summary>
+    /// <param name="name">The type parameter identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This method builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public MethodBuilder TypeParameter(string name, Action<TypeParameterBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new TypeParameterBuilder(name);
+        configure(builder);
+        typeParameters.Add(builder);
+        return this;
+    }
+
     /// <summary>Includes the partial modifier once, immediately before the return type.</summary>
     /// <returns>This method builder.</returns>
     public MethodBuilder Partial()
@@ -47,6 +112,22 @@ public sealed class MethodBuilder : MemberBuilder<MethodBuilder>
             declaration += "partial ";
         }
 
-        writer.WriteLine(declaration + returnType + " " + name + "();");
+        declaration += returnType + " " + name;
+        if (typeParameters.Count > 0)
+        {
+            declaration += "<" + string.Join(", ", typeParameters.ConvertAll(parameter => parameter.name)) + ">";
+        }
+
+        declaration += "(" + string.Join(", ", parameters.ConvertAll(parameter => parameter.RenderParameter())) + ")";
+        foreach (var parameter in typeParameters)
+        {
+            var clause = parameter.RenderConstraintClause();
+            if (clause.Length > 0)
+            {
+                declaration += " " + clause;
+            }
+        }
+
+        writer.WriteLine(declaration + ";");
     }
 }

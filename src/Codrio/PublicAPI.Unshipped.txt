@@ -51,8 +51,12 @@ Codrio.MemberBuilder<TSelf>.Sealed() -> TSelf!
 Codrio.MemberBuilder<TSelf>.Static() -> TSelf!
 Codrio.MemberBuilder<TSelf>.Virtual() -> TSelf!
 Codrio.MethodBuilder
+Codrio.MethodBuilder.Parameter(string! type, string! name) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Partial() -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Returns(string! type) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.TypeParameter(string! name) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.NamespaceBuilder
 Codrio.NamespaceBuilder.Add(Codrio.ClassBuilder! classBuilder) -> Codrio.NamespaceBuilder!
 Codrio.NamespaceBuilder.Add(Codrio.EnumBuilder! enumBuilder) -> Codrio.NamespaceBuilder!
