@@ -80,6 +80,19 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds a base class or interface to the end of the base type list.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf BaseType(Type type) => BaseType(TypeName.Render(type, nameof(type)));
+
+    /// <summary>Adds a base class or interface to the end of the base type list.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf BaseType<T>() => BaseType(typeof(T));
+
     /// <summary>Adds an unconstrained type parameter.</summary>
     /// <param name="name">The type parameter identifier. Reserved keywords are escaped.</param>
     /// <returns>This type builder.</returns>

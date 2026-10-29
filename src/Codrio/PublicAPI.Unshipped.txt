@@ -58,6 +58,8 @@ Codrio.EnumBuilder.Member(string! name, string! value) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, string! value, System.Action<Codrio.EnumMemberBuilder!>! configure) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, System.Action<Codrio.EnumMemberBuilder!>! configure) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.UnderlyingType(string! type) -> Codrio.EnumBuilder!
+Codrio.EnumBuilder.UnderlyingType(System.Type! type) -> Codrio.EnumBuilder!
+Codrio.EnumBuilder.UnderlyingType<T>() -> Codrio.EnumBuilder!
 Codrio.EnumMemberBuilder
 Codrio.EnumMemberBuilder.Attribute(string! name, params string![]! arguments) -> Codrio.EnumMemberBuilder!
 Codrio.EnumMemberBuilder.Doc(System.Action<Codrio.DocBuilder!>! configure) -> Codrio.EnumMemberBuilder!
@@ -210,6 +212,8 @@ Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.PropertyBuilder! propertyBuilder
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.RecordBuilder! recordBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.StructBuilder! structBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.BaseType(string! type) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.BaseType(System.Type! type) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.BaseType<T>() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Delegate(string! name) -> TSelf!
@@ -271,6 +275,8 @@ Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> TSelf!
 Codrio.TypeParameterBuilder
 Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParameterBuilder!
+Codrio.TypeParameterBuilder.Constraint(System.Type! type) -> Codrio.TypeParameterBuilder!
+Codrio.TypeParameterBuilder.Constraint<T>() -> Codrio.TypeParameterBuilder!
 override Codrio.AccessorBuilder.ToString() -> string!
 override Codrio.BodyBuilder.ToString() -> string!
 override Codrio.ConstructorBuilder.ToString() -> string!

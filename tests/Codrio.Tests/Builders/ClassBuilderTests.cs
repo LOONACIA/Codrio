@@ -122,7 +122,7 @@ public class ClassBuilderTests
         var builder = CSharp.Class("Repo");
         var configured = false;
 
-        Assert.Throws<ArgumentNullException>("type", () => builder.BaseType(null!));
+        Assert.Throws<ArgumentNullException>("type", () => builder.BaseType((string)null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.TypeParameter(null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.TypeParameter(null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.TypeParameter("T", null!));

@@ -70,7 +70,7 @@ public class TypeParameterBuilderTests
     {
         CSharp.Class("Repo").TypeParameter("T", t =>
         {
-            Assert.Throws<ArgumentNullException>("constraint", () => t.Constraint(null!));
+            Assert.Throws<ArgumentNullException>("constraint", () => t.Constraint((string)null!));
             OutputAssert.Equal("", t.ToString());
         });
     }
