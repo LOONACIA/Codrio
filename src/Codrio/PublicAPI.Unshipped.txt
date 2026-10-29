@@ -6,11 +6,19 @@ Codrio.BodyBuilder.Line(string! code) -> Codrio.BodyBuilder!
 Codrio.CSharp
 Codrio.ClassBuilder
 Codrio.ClassOrStructBuilder<TSelf>
+Codrio.ClassOrStructBuilder<TSelf>.Add(Codrio.ConstructorBuilder! constructorBuilder) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.Add(Codrio.FieldBuilder! fieldBuilder) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.Constructor() -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.Constructor(System.Action<Codrio.ConstructorBuilder!>! configure) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.Field(string! type, string! name) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.Field(string! type, string! name, System.Action<Codrio.FieldBuilder!>! configure) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(string! type, string! name) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> TSelf!
+Codrio.ConstructorBuilder
+Codrio.ConstructorBuilder.Body() -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter(string! type, string! name) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.ConstructorBuilder!
 Codrio.EnumBuilder
 Codrio.EnumBuilder.Member(string! name) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, string! value) -> Codrio.EnumBuilder!
@@ -138,6 +146,7 @@ Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name, System.Action<C
 Codrio.TypeParameterBuilder
 Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParameterBuilder!
 override Codrio.BodyBuilder.ToString() -> string!
+override Codrio.ConstructorBuilder.ToString() -> string!
 override Codrio.FileBuilder.ToString() -> string!
 override Codrio.MemberBuilder<TSelf>.ToString() -> string!
 override Codrio.NamespaceBuilder.ToString() -> string!
@@ -146,6 +155,8 @@ override Codrio.TypeBuilder<TSelf>.ToString() -> string!
 override Codrio.TypeParameterBuilder.ToString() -> string!
 static Codrio.CSharp.Class(string! name) -> Codrio.ClassBuilder!
 static Codrio.CSharp.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> Codrio.ClassBuilder!
+static Codrio.CSharp.Constructor() -> Codrio.ConstructorBuilder!
+static Codrio.CSharp.Constructor(System.Action<Codrio.ConstructorBuilder!>! configure) -> Codrio.ConstructorBuilder!
 static Codrio.CSharp.Enum(string! name) -> Codrio.EnumBuilder!
 static Codrio.CSharp.Enum(string! name, System.Action<Codrio.EnumBuilder!>! configure) -> Codrio.EnumBuilder!
 static Codrio.CSharp.Field(string! type, string! name) -> Codrio.FieldBuilder!
