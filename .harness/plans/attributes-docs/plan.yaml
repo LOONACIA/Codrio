@@ -1,0 +1,498 @@
+id: attributes-docs
+goal: >
+  PRD 핵심 기능 2·3의 생성 코드용 attribute와 XML 문서(Doc)를 모든 빌더에 붙인다. `[이름(인자들)]` 문자열을 만드는 internal
+  Rendering 헬퍼(AttributeSyntax)와 XML 이스케이프 헬퍼(XmlText)를 두고, 타입·멤버의 제네릭 기반 클래스 TypeBuilder<TSelf>와
+  MemberBuilder<TSelf>에 `Attribute(string name, params string[] arguments)`와 `Doc(Action<DocBuilder>)`를 두어 모든 타입(enum 포함)과
+  모든 멤버(델리게이트 포함) 선언 앞에 문서 줄, attribute 줄, 선언 줄 순서로 출력한다. 매개변수(주 생성자 매개변수 포함)에는 attribute만
+  같은 줄에 인라인으로 붙이고, enum 멤버에는 새 EnumMemberBuilder로 attribute와 문서를 붙인다. DocBuilder는 Summary·Param·Returns(텍스트
+  XML 이스케이프)와 Xml(원시 XML)을 호출 순서대로 줄마다 `///`를 붙여 출력하고, DocBuilder와 EnumMemberBuilder는 ToString()으로 자기
+  조각을 렌더링한다. 완료는 기능마다 기대 문자열 정확 일치 테스트(이스케이프, 여러 줄, Xml 원시 입력 포함)와 완결 파일의 Roslyn 오류
+  진단 0개 테스트가 있고, `dotnet build Codrio.slnx -c Release`와 `dotnet test Codrio.slnx`가 net10.0·net48에서 통과하며, 새 공개 API가
+  영어 XML 문서와 PublicAPI.Unshipped.txt 항목을 갖는 상태다. attribute의 System.Type·제네릭 오버로드, `[assembly: ...]`, 주석·전처리기
+  전용 API, 문자열 리터럴 이스케이프 헬퍼, 접근자·타입 매개변수의 attribute는 이 계획에서 하지 않는다.
+approved: true
+branch_prefix: feat
+max_attempts: 3
+ac_timeout_sec: 900
+steps:
+  - id: s1-type-attributes
+    title: add attributes to type declarations
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·3·5·6·7, "범위 밖"), docs/ARCHITECTURE.md("레이어 규칙", "횡단 관심사"),
+      docs/ADR.md(ADR-002·003·004·006), src/Codrio/Builders/TypeBuilder.cs, src/Codrio/Builders/TypeDeclarationBuilder.cs(Write와 `items`
+      목록), src/Codrio/Builders/EnumBuilder.cs(Write), src/Codrio/Builders/RecordBuilder.cs(`EndsWithSemicolonWhenEmpty`),
+      src/Codrio/Rendering/Identifier.cs(internal static 헬퍼의 형태), src/Codrio/Rendering/CodeWriter.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/EnumBuilderTests.cs(테스트 구성 예), tests/Codrio.Tests/TestSupport/OutputAssert.cs,
+      tests/Codrio.Tests/TestSupport/CompilationAssert.cs.
+
+      모든 타입 빌더(class·struct·interface·record·record struct·enum)에 생성 코드용 attribute를 붙인다. 이 계획 전체에서 선언 앞에 오는
+      줄은 문서 줄, attribute 줄, 선언 줄 순서이고, 각 빌더의 internal `WritePreamble(CodeWriter)`가 선언 줄 앞의 줄을 쓴다. attribute는
+      이 스텝(타입), s2(멤버), s3(매개변수), s4(enum 멤버) 순서로 붙이고, 문서는 s5(타입)와 s6(멤버·enum 멤버)에서 같은 WritePreamble
+      앞부분에 더한다.
+
+      internal 헬퍼와 공개 API(공개 타입은 모두 `namespace Codrio;`):
+      - 새 src/Codrio/Rendering/AttributeSyntax.cs(`namespace Codrio.Rendering;`): `internal static class AttributeSyntax`,
+        `internal static string Render(string name, string[] arguments)`. name이 null이면 ArgumentNullException(`name`), arguments가 null이거나
+        null 요소가 있으면 ArgumentNullException(`arguments`). 인자가 없으면 `[<name>]`, 있으면 `[<name>(<인자들을 ", "로 이은 것>)]`이다.
+        이름과 인자는 검증 없이 그대로 쓴다(ADR-004: 타입 참조와 attribute 인자는 문자열로 받아 그대로 출력). 빈 문자열 인자도 인자
+        하나다(`Render("X", new[] { "" })` → `[X()]`). 스텝 s2~s4가 이 헬퍼를 그대로 재사용한다.
+      - TypeBuilder<TSelf>: internal 필드 `List<string> attributes`(빈 목록으로 초기화).
+        `public TSelf Attribute(string name, params string[] arguments)`: `AttributeSyntax.Render(name, arguments)` 결과를 목록 끝에 추가하고
+        `(TSelf)this`를 반환한다. 같은 attribute를 다시 호출해도 중복 제거 없이 또 추가한다. 호출 시점에 문자열로 만들어 저장한다. 이유:
+        호출자가 넘긴 params 배열을 나중에 바꿔도 출력이 바뀌지 않는다.
+        `internal void WritePreamble(CodeWriter writer)`: attribute를 추가 순서대로 한 줄에 하나씩 `writer.WriteLine`으로 쓴다.
+      - TypeDeclarationBuilder<TSelf>.Write와 EnumBuilder.Write의 맨 앞에서 `WritePreamble(writer)`를 호출한다. 나머지 Write 코드는 바꾸지
+        마라. 이유: 기존 출력 규칙이 이미 테스트되어 있고, FileBuilder·NamespaceBuilder·타입 본문이 담아 둔 `builder.Write` 델리게이트를
+        그대로 써야 attribute가 모든 위치에서 나온다.
+      `Attribute(string name)` 같은 오버로드를 따로 만들지 마라. 이유: params가 인자 없는 호출(`Attribute("Serializable")`)과 PRD 예시
+      (`.Attribute("Obsolete", "\"msg\"")`), 인자 여러 개를 한 메서드로 받고, 선택적 매개변수가 아니라 PublicApiAnalyzers RS0026/RS0027에
+      걸리지 않으며, 다음 작업이 Type·제네릭 오버로드를 같은 모양으로 추가한다.
+
+      출력 규칙:
+      - attribute 줄은 선언 줄 바로 앞에 추가 순서대로 한 줄씩 나오고 현재 들여쓰기를 따른다(중첩 타입, 블록 namespace 안). 호출 순서와
+        무관하게 attribute 줄이 선언 줄 앞이다.
+      - attribute는 본문 항목이 아니다. 본문 항목이 없는 record는 attribute가 있어도 `;`로 끝난다.
+      - 예: `CSharp.Class("Widget", c => c.Public().Attribute("Serializable").Attribute("Obsolete", "\"Use Gadget.\"", "true")).ToString()` →
+        `[Serializable]\n[Obsolete("Use Gadget.", true)]\npublic class Widget\n{\n}\n`.
+        `CSharp.Enum("Color", e => e.Attribute("Flags").Member("Red", "1"))` → `[Flags]\nenum Color\n{\n    Red = 1\n}\n`.
+        `CSharp.Record("Point", r => r.Attribute("Obsolete").PrimaryParameter("int", "X"))` → `[Obsolete]\nrecord Point(int X);\n`.
+        `CSharp.File().Namespace("App", n => n.Class("Outer", c => c.Class("Inner", i => i.Attribute("Obsolete"))))` →
+        `namespace App\n{\n    class Outer\n    {\n        [Obsolete]\n        class Inner\n        {\n        }\n    }\n}\n`.
+
+      문서와 PublicAPI: Attribute에 영어 XML 문서(summary, param, returns, exception)를 달고, `name` 설명에 그대로 출력되며 `return:` 같은
+      대상 접두어도 그대로 쓸 수 있다는 점, `arguments` 설명에 원시 인자 문자열을 `, `로 이어 괄호 안에 쓰고 비어 있으면 괄호를 생략한다는
+      점을 적는다. TypeBuilder 클래스 remarks에 attribute 줄이 선언 줄 앞에 추가 순서대로 나온다는 점을 더한다. 새 공개 심볼은 RS0016 메시지
+      문자열 그대로 src/Codrio/PublicAPI.Unshipped.txt에 추가한다(예: `Codrio.TypeBuilder<TSelf>.Attribute(string! name, params string![]!
+      arguments) -> TSelf!`). PublicAPI.Shipped.txt는 건드리지 마라. 이유: 0.1.0은 아직 배포 전이다.
+
+      테스트(새 tests/Codrio.Tests/Builders/TypeAttributeTests.cs), `OutputAssert.Equal`로:
+      - 인자 없음 `[X]`, 인자 하나, 인자 여러 개의 `, ` 구분, 이름·인자 문자열을 그대로 출력(`global::System.ObsoleteAttribute`, 공백이
+        섞인 인자), 빈 문자열 인자 `[X()]`.
+      - 여러 번 호출한 attribute의 순서, 같은 attribute 중복 유지, Attribute를 접근 제한자·수식어보다 나중에 호출해도 선언 줄 앞에 나옴.
+      - class·struct·interface·record·record struct·enum 각각, 수식어·타입 매개변수·기반 타입·주 생성자·제약과 함께 쓴 선언 줄.
+      - 본문 없는 record와 record struct가 attribute가 있어도 `;`로 끝남, 본문 항목이 있으면 블록.
+      - 중첩 타입의 들여쓰기, 블록 namespace·파일 범위 namespace·FileBuilder 최상위 타입, 타입 본문에서 앞 항목과의 빈 줄 1개가 attribute 줄
+        앞에 들어감.
+      - `CSharp.Class` 등으로 따로 만든 빌더를 Add한 경우와 Add 뒤에 추가한 attribute가 출력에 반영됨.
+      - 호출 뒤 params로 넘긴 배열의 요소를 바꿔도 출력이 바뀌지 않음.
+      - null 인자: `name`(ParamName `name`), `Attribute("X", (string[])null!)`와 `Attribute("X", "a", null!)`(ParamName `arguments`).
+      - 체이닝 반환값(`Assert.Same`, ClassBuilder·StructBuilder·InterfaceBuilder·RecordBuilder·EnumBuilder).
+      `CompilationAssert.NoErrors`: `using System;`과 블록 namespace 안에 `[Serializable]`과 `[Obsolete("...")]`를 가진 public class,
+      `[System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple = true)]`를 가진 `TagAttribute : System.Attribute` class(주 생성자
+      `string name`)와 `[Tag("a")]`·`[Tag("b")]`를 가진 class, `[Flags]` enum(기반 형식 byte), `[System.Runtime.InteropServices.StructLayout(
+      System.Runtime.InteropServices.LayoutKind.Sequential)]` struct, `[Obsolete]` interface, attribute가 있는 본문 없는 record와 record struct,
+      attribute가 있는 중첩 class를 담은 완결 파일.
+      주의: attribute는 대상 종류에 맞아야 한다(CS0592: Flags는 enum에만, Serializable은 interface에 불가, StructLayout은 class·struct에만).
+      AllowMultiple이 아닌 attribute를 같은 선언에 두 번 쓰면 CS0579다. attribute 인자는 상수식이어야 한다(CS0182). Obsolete 사용 경고는
+      오류가 아니라 괜찮다. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      그 대상에는 IsExternalInit가 없다. src/Codrio에서도 record·init을 쓰거나 Polyfills를 만들지 마라.
+      하지 마라: 멤버 attribute(이유: 스텝 s2), 매개변수 attribute(이유: 스텝 s3), EnumBuilder.Member 변경과 enum 멤버 attribute(이유:
+      스텝 s4), Doc·DocBuilder(이유: 스텝 s5·s6), FileBuilder·NamespaceBuilder의 `[assembly: ...]`나 attribute 진입점(이유: PRD 범위 밖,
+      Raw()로 대신한다), CSharp.cs 변경(이유: attribute는 기존 빌더의 기능이고 새 진입점이 필요 없다), attribute 이름·인자 검증이나
+      `Attribute` 접미사 자동 처리(이유: ADR-004, 문자열은 그대로 출력한다), TypeParameterBuilder attribute(이유: 작업 범위에 없다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Rendering/AttributeSyntax.cs
+      - src/Codrio/Builders/TypeBuilder.cs
+      - src/Codrio/Builders/TypeDeclarationBuilder.cs
+      - src/Codrio/Builders/EnumBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/TypeAttributeTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s2-member-attributes
+    title: add attributes to member declarations
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 3·6·7), docs/ARCHITECTURE.md("레이어 규칙"), docs/ADR.md(ADR-003·004·006),
+      src/Codrio/Rendering/AttributeSyntax.cs, src/Codrio/Builders/TypeBuilder.cs(스텝 s1의 Attribute·WritePreamble),
+      src/Codrio/Builders/MemberBuilder.cs, src/Codrio/Builders/MethodBuilder.cs, src/Codrio/Builders/FieldBuilder.cs,
+      src/Codrio/Builders/ConstructorBuilder.cs, src/Codrio/Builders/PropertyOrIndexerBuilder.cs(WriteDeclaration),
+      src/Codrio/Builders/PropertyBuilder.cs, src/Codrio/Builders/IndexerBuilder.cs, src/Codrio/Builders/EventBuilder.cs,
+      src/Codrio/Builders/DelegateBuilder.cs, src/Codrio/Builders/OperatorBuilder.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/TypeAttributeTests.cs, tests/Codrio.Tests/Builders/MemberCompositionTests.cs.
+
+      모든 멤버 빌더(method·field·constructor·property·indexer·event·delegate·operator)에 attribute를 붙인다. 스텝 s1이 TypeBuilder에 둔 것과
+      같은 모양을 MemberBuilder<TSelf>에 둔다. 각 Write 파일의 변경은 맨 앞 호출 한 줄이다.
+
+      공개 API와 렌더링:
+      - MemberBuilder<TSelf>: internal 필드 `List<string> attributes`, `public TSelf Attribute(string name, params string[] arguments)`(스텝
+        s1의 TypeBuilder.Attribute와 같은 의미: `AttributeSyntax.Render` 결과를 호출 시점에 목록 끝에 추가, 중복 제거 없음, null 검사는 헬퍼가
+        함), `internal void WritePreamble(CodeWriter writer)`(attribute를 추가 순서대로 한 줄씩 씀).
+      - 다음의 맨 앞에서 `WritePreamble(writer)`를 호출한다: MethodBuilder.Write, FieldBuilder.Write, ConstructorBuilder의
+        `Write(CodeWriter writer, string typeName)`(매개변수 하나짜리 override는 이것에 위임하므로 고치지 마라), EventBuilder.Write,
+        DelegateBuilder.Write, OperatorBuilder.Write, PropertyOrIndexerBuilder.WriteDeclaration. PropertyBuilder와 IndexerBuilder는 고치지
+        마라. 이유: 둘 다 WriteDeclaration을 거친다. 각 Write의 나머지 코드는 바꾸지 마라. 이유: 기존 출력 규칙이 이미 테스트되어 있다.
+      TypeBuilder와 MemberBuilder의 Attribute 코드가 겹쳐도 공용 기반 클래스를 만들거나 TypeBuilder를 고치지 마라. 이유: 이미 있는 공개 API
+      항목이 바뀌고, 타입과 멤버는 별도 계층이다(겹치는 형식 규칙은 AttributeSyntax가 이미 한 곳에 있다).
+
+      출력 규칙:
+      - attribute 줄은 멤버 선언의 첫 줄 바로 앞에 추가 순서대로 한 줄씩 나오고 현재 들여쓰기를 따른다. 타입 본문의 항목 사이 빈 줄 1개는
+        앞 항목과 attribute 줄 사이에 들어간다. 블록 형식 속성·Body 메서드·생성자처럼 여러 줄인 멤버도 attribute는 맨 앞에 한 번 나온다.
+      - 예: `CSharp.Method("Run", m => m.Public().Attribute("Obsolete").Body()).ToString()` → `[Obsolete]\npublic void Run()\n{\n}\n`.
+        `CSharp.Class("Service", c => c.Field("int", "count", f => f.Private().Attribute("NonSerialized"))
+        .Property("string", "Name", p => p.Public().Attribute("Browsable", "false")))` →
+        `class Service\n{\n    [NonSerialized]\n    private int count;\n\n    [Browsable(false)]\n    public string Name { get; set; }\n}\n`.
+        `CSharp.Constructor(k => k.Attribute("Obsolete")).ToString()` → `[Obsolete]\n()\n{\n}\n`.
+        `CSharp.Method("Name", m => m.Returns("string").Attribute("return: NotNull").Arrow("\"\""))` → `[return: NotNull]\nstring Name() => "";\n`.
+
+      문서와 PublicAPI: MemberBuilder.Attribute에 스텝 s1과 같은 내용의 영어 XML 문서, MemberBuilder 클래스 remarks에 attribute 줄 위치,
+      RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예: `Codrio.MemberBuilder<TSelf>.Attribute(string! name, params string![]!
+      arguments) -> TSelf!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트(새 tests/Codrio.Tests/Builders/MemberAttributeTests.cs), `OutputAssert.Equal`로:
+      - 8개 멤버 각각의 단독 ToString에서 attribute 줄이 선언 앞에 나옴: method(본문 없음·Body·Arrow), field, constructor(단독은 이름 생략,
+        타입 안에서는 타입 이름), property(한 줄 형식·접근자 본문이 있는 블록 형식·선언 Arrow·Initializer), indexer, event, delegate, operator
+        (일반·implicit·explicit).
+      - attribute 여러 개의 순서와 중복 유지, 인자 없음·여러 개, `return:` 같은 대상 접두어를 그대로 출력, Attribute를 수식어보다 나중에
+        호출해도 선언 앞에 나옴.
+      - class 본문에서 attribute가 있는 멤버들과 없는 멤버, Raw가 섞인 항목 순서와 빈 줄, 중첩 class 안 멤버 attribute 들여쓰기,
+        FileBuilder·블록 namespace의 delegate attribute, attribute가 있는 멤버만 가진 record가 블록이 됨.
+      - `CSharp.Method/Field/Constructor/Property/Indexer/Event/Delegate/Operator`로 만들어 Add한 경우와 Add 뒤에 추가한 attribute가
+        반영됨.
+      - null 인자(`name`, `arguments` 배열, null 요소), 8개 멤버 빌더 각각의 체이닝 반환값(`Assert.Same`).
+      `CompilationAssert.NoErrors`: `using System;`과 블록 namespace 안에 `[Obsolete]` delegate, attribute가 있는 메서드를 가진 interface, 그것을
+      구현하며 `[NonSerialized]` 필드, `[Obsolete("...")]` 생성자, `[System.Diagnostics.Conditional("DEBUG")]` void 메서드,
+      `[return: System.Diagnostics.CodeAnalysis.NotNull]` 메서드, `[System.ComponentModel.Browsable(false)]` 자동 속성과 블록 형식 속성,
+      `[System.Runtime.CompilerServices.IndexerName("Entry")]` 인덱서, `[Obsolete]` 이벤트, 중첩 `[Obsolete]` delegate를 가진 class,
+      `[Obsolete]` 이항 연산자와 implicit 변환 연산자를 가진 struct를 담은 완결 파일.
+      주의: attribute는 대상 종류에 맞아야 한다(CS0592: NonSerialized는 필드에만, IndexerName은 인덱서에만). Conditional은 void 메서드에만
+      쓸 수 있고(CS0578), 연산자·생성자(CS0577), override 메서드(CS0243), interface 구현 메서드(CS0629)에는 쓸 수 없다. AllowMultiple이 아닌
+      attribute 중복은 CS0579다. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: AccessorBuilder·BodyBuilder·TypeParameterBuilder의 attribute(이유: 작업이 attribute 대상으로 타입·멤버·enum 멤버·매개변수만
+      정했다), 매개변수 attribute(이유: 스텝 s3), Doc(이유: 스텝 s5·s6), CSharp.cs와 TypeDeclarationBuilder·ClassOrStructBuilder·FileBuilder·
+      NamespaceBuilder 변경(이유: 각 멤버가 자기 Write에서 attribute를 쓰므로 담는 쪽은 바뀔 필요가 없다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/MemberBuilder.cs
+      - src/Codrio/Builders/MethodBuilder.cs
+      - src/Codrio/Builders/FieldBuilder.cs
+      - src/Codrio/Builders/ConstructorBuilder.cs
+      - src/Codrio/Builders/PropertyOrIndexerBuilder.cs
+      - src/Codrio/Builders/EventBuilder.cs
+      - src/Codrio/Builders/DelegateBuilder.cs
+      - src/Codrio/Builders/OperatorBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/MemberAttributeTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s3-parameter-attributes
+    title: add inline attributes to parameters
+    type: feat
+    scope: builders
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·3), docs/ARCHITECTURE.md("레이어 규칙"의 조각 빌더 예외), docs/ADR.md(ADR-004),
+      src/Codrio/Rendering/AttributeSyntax.cs, src/Codrio/Builders/ParameterBuilder.cs(RenderParameter),
+      src/Codrio/Builders/ClassOrStructBuilder.cs(PrimaryParameter), src/Codrio/Builders/MethodBuilder.cs(Parameter),
+      src/Codrio/Builders/MemberBuilder.cs(스텝 s2의 Attribute 문서 문구), src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/ParameterBuilderTests.cs.
+
+      매개변수에 attribute를 같은 줄 인라인으로 붙인다. ParameterBuilder는 메서드·생성자·delegate·인덱서·연산자 매개변수와 class·struct·
+      record·record struct의 주 생성자 매개변수가 모두 재사용하므로 ParameterBuilder 하나만 고치면 모든 위치에 적용된다. 다른 빌더 파일은
+      고치지 마라.
+
+      공개 API(ParameterBuilder):
+      - internal 필드 `List<string> attributes`, `public ParameterBuilder Attribute(string name, params string[] arguments)`: 스텝 s1·s2의
+        Attribute와 같은 의미(`AttributeSyntax.Render` 결과를 호출 시점에 목록 끝에 추가, 중복 제거 없음, null 검사는 헬퍼가 함).
+      - RenderParameter(): attribute마다 `<attribute> `(뒤에 공백 하나)를 추가 순서대로 맨 앞에 붙이고, 그 뒤는 지금 출력(`this `, `ref `,
+        `out `, `in `, `params `, 형식, 이름, ` = <기본값>`) 그대로다. 이유: C# 문법에서 매개변수 attribute는 매개변수 수식어보다 앞에 온다.
+        ToString은 지금처럼 RenderParameter() 결과다(줄바꿈 없음).
+      매개변수에는 Doc을 두지 마라. 이유: 작업이 매개변수에는 attribute만 붙인다고 정했고, 매개변수 문서는 담는 멤버의 Doc에서
+      `Param(...)`으로 쓴다(스텝 s5·s6).
+
+      출력 규칙과 예:
+      - `CSharp.Method("Log", m => m.Parameter("string", "message").Parameter("string", "caller", p => p.Attribute("CallerMemberName")
+        .Default("\"\""))).ToString()` → `void Log(string message, [CallerMemberName] string caller = "");\n`.
+      - `CSharp.Record("Person", r => r.PrimaryParameter("string", "Name", p => p.Attribute("property: JsonPropertyName", "\"name\"")))
+        .ToString()` → `record Person([property: JsonPropertyName("name")] string Name);\n`.
+      - attribute 여러 개는 공백으로 구분된 각각의 대괄호다: `[NotNull] [Description("x")] this string value`.
+
+      문서와 PublicAPI: ParameterBuilder.Attribute에 영어 XML 문서(summary, param, returns, exception)와 "같은 줄에서 수식어 앞에 나온다"는
+      설명, ParameterBuilder 클래스 remarks 보강, RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예: `Codrio.ParameterBuilder.
+      Attribute(string! name, params string![]! arguments) -> Codrio.ParameterBuilder!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트(tests/Codrio.Tests/Builders/ParameterBuilderTests.cs에 추가), `OutputAssert.Equal`로:
+      - ToString 조각: attribute 하나·여러 개(순서, 중복 유지), 인자 없음·여러 개, `this`·`ref`·`out`·`in`·`params` 수식어와 Default가 함께
+        있을 때 attribute가 맨 앞, `property:`·`param:` 같은 대상 접두어를 그대로 출력.
+      - 담는 선언에서의 출력: 메서드(여러 매개변수 중 일부만 attribute), 생성자, delegate, 인덱서, 연산자, class·struct·record·record struct의
+        주 생성자. 본문 없는 record가 attribute 있는 주 생성자 매개변수를 가져도 `;`로 끝남.
+      - null 인자(`name`, `arguments` 배열, null 요소), 체이닝 반환값(`Assert.Same`).
+      `CompilationAssert.NoErrors`: `#nullable enable`과 블록 namespace 안에 `[System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string?
+      value` 매개변수를 가진 `bool TryGet` 메서드(본문에서 대입 후 반환), `[System.Runtime.CompilerServices.CallerMemberName] string caller = ""`
+      매개변수 메서드, 매개변수 attribute가 있는 생성자·인덱서·연산자를 가진 class 또는 struct, `[System.Diagnostics.CodeAnalysis.NotNull]
+      this string? text` 확장 메서드를 가진 static class, 매개변수 attribute가 있는 delegate, `[property: System.ComponentModel.Description(
+      "Identifier")] int Id` 주 생성자 매개변수를 가진 record, attribute 있는 주 생성자 매개변수를 가진 class와 record struct를 담은 완결 파일.
+      주의: CallerMemberName은 기본값이 있어야 한다(CS4021). out 매개변수는 반환 전에 대입해야 한다(CS0177). 확장 메서드는 중첩되지 않은
+      제네릭 아닌 static class에 있어야 한다(CS1109). `System.ParamArray`를 직접 쓰면 CS0674다. class·struct의 연산자는 `public static`이어야
+      한다(CS0558). 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: 매개변수 attribute를 별도 줄로 내리기(이유: 작업이 같은 줄 인라인으로 정했다), TypeParameterBuilder attribute(이유: 작업
+      범위에 없다), MethodBuilder·ConstructorBuilder·DelegateBuilder·IndexerBuilder·OperatorBuilder·ClassOrStructBuilder 변경(이유: 모두
+      RenderParameter()를 그대로 쓴다), enum 멤버(이유: 스텝 s4), Doc(이유: 스텝 s5·s6).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/ParameterBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/ParameterBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s4-enum-member-attributes
+    title: add EnumMemberBuilder with member attributes
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·5·6·7), docs/ARCHITECTURE.md("레이어 규칙", "횡단 관심사"), docs/ADR.md(ADR-003·004·006),
+      src/Codrio/Builders/EnumBuilder.cs, src/Codrio/Builders/ParameterBuilder.cs(람다로만 만드는 조각 빌더와 Attribute 예),
+      src/Codrio/Builders/AccessorBuilder.cs(CodeWriter 기반 ToString 예), src/Codrio/Builders/TypeBuilder.cs(WritePreamble),
+      src/Codrio/Rendering/AttributeSyntax.cs, src/Codrio/Rendering/Identifier.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/EnumBuilderTests.cs.
+
+      enum 멤버를 빌더로 모델링하고 attribute를 붙인다. EnumMemberBuilder는 ParameterBuilder처럼 담는 빌더의 람다로만 만드는 조각
+      빌더다. 스텝 s6이 같은 빌더에 Doc을 더한다.
+
+      공개 API:
+      - 새 src/Codrio/Builders/EnumMemberBuilder.cs: `public sealed class EnumMemberBuilder`, internal 생성자 `EnumMemberBuilder(string name,
+        string? value)`(name은 `Identifier.ValidateAndEscape(name, nameof(name))`, value는 그대로 저장). internal 필드 `name`, `value`,
+        `List<string> attributes`. `public EnumMemberBuilder Attribute(string name, params string[] arguments)`(스텝 s1~s3과 같은 의미,
+        `AttributeSyntax.Render` 재사용). `internal void WritePreamble(CodeWriter writer)`(attribute를 한 줄씩), `internal void Write(CodeWriter
+        writer, string suffix)`(WritePreamble 뒤에 `<이름>[ = <값>]<suffix>` 한 줄), `public override string ToString()`(새 CodeWriter에
+        `Write(writer, "")`한 결과, 예 `Red = 1\n`).
+      - EnumBuilder: internal 필드 `members`를 `List<EnumMemberBuilder>`로 바꾸고, 기존 `Member(string name)`·`Member(string name, string value)`는
+        같은 검사 순서와 출력을 유지한 채 EnumMemberBuilder를 추가하게 바꾼다. 새 오버로드 `EnumBuilder Member(string name,
+        Action<EnumMemberBuilder> configure)`, `EnumBuilder Member(string name, string value, Action<EnumMemberBuilder> configure)`: configure
+        null 검사(ParamName `configure`), value null 검사(ParamName `value`) → 새 EnumMemberBuilder(이름이 잘못되면 여기서 ArgumentException,
+        람다 미실행) → 람다 즉시 한 번 실행 → 목록 끝에 추가. EnumBuilder.Write는 멤버 i를 `members[i].Write(writer, i < 마지막 ? "," : "")`로
+        쓴다. 선언 줄과 WritePreamble 호출(스텝 s1)은 그대로 둔다.
+      `CSharp.EnumMember` 진입점이나 `EnumBuilder.Add(EnumMemberBuilder)`를 만들지 마라. 이유: enum 멤버는 ParameterBuilder·AccessorBuilder처럼
+      담는 빌더 안에서만 만드는 조각이고, 작업은 enum 멤버에 attribute와 문서를 붙이는 것만 요구한다.
+
+      출력 규칙:
+      - 멤버마다 attribute 줄(추가 순서), 그다음 `<이름>[ = <값>]` 줄이고 쉼표는 마지막 멤버를 뺀 멤버 줄 끝에 붙는다. 멤버 사이에 빈 줄을
+        넣지 않는다. 이유: 기존 enum 출력 규칙(쉼표 구분, 빈 줄 없음)을 바꾸지 않는다.
+      - 예: `CSharp.Enum("Access", e => e.Attribute("Flags").Member("Read", "1", m => m.Attribute("Description", "\"read\""))
+        .Member("Write", "2").Member("Legacy", m => m.Attribute("Obsolete")))` →
+        `[Flags]\nenum Access\n{\n    [Description("read")]\n    Read = 1,\n    Write = 2,\n    [Obsolete]\n    Legacy\n}\n`.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception), EnumMemberBuilder 클래스 remarks(가변, 스레드
+      안전하지 않음, 값은 그대로 출력, ToString에는 쉼표가 없고 쉼표는 담는 enum이 붙임), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt
+      항목(예: `Codrio.EnumBuilder.Member(string! name, System.Action<Codrio.EnumMemberBuilder!>! configure) -> Codrio.EnumBuilder!`,
+      `override Codrio.EnumMemberBuilder.ToString() -> string!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/EnumMemberBuilderTests.cs, `OutputAssert.Equal`로: 람다로 받은 EnumMemberBuilder의 ToString(값 없음·있음,
+        attribute 있음, 쉼표 없음), 두 새 오버로드의 람다 즉시 한 번 실행, 위 예시, 첫·중간·마지막 멤버에 attribute가 있을 때 쉼표 위치,
+        attribute 여러 개 순서, 키워드 이름(`class` → `@class`), 값 문자열 그대로 출력, Member 뒤에 람다 밖에서 바꾼 멤버 attribute가 출력에
+        반영됨(인스턴스 공유), 중첩 enum과 블록 namespace 안 들여쓰기, 잘못된 이름이 호출 시점에 ArgumentException(ParamName `name`)이고 람다
+        미실행, null 인자(`name`, `value`, `configure`, Attribute의 `name`·`arguments`), 체이닝 반환값(`Assert.Same`). 새 오버로드의
+        configure null 검사는 `Member("A", (Action<EnumMemberBuilder>)null!)`처럼 캐스트한다. 이유: 캐스트 없는 `null!`은 CS0121로 모호하다.
+        `CompilationAssert.NoErrors`: `using System;`과 블록 namespace 안에 `[Flags]` enum(기반 형식 byte)과 `[Obsolete("Use Write.")]` 멤버,
+        `[System.ComponentModel.Description("read")]` 멤버, 키워드 이름 멤버를 담은 완결 파일.
+      - tests/Codrio.Tests/Builders/EnumBuilderTests.cs: 새 `Member(string, Action<EnumMemberBuilder>)` 오버로드 때문에
+        `builder.Member("A", null!)`가 CS0121로 모호해지므로 그 한 줄만 `builder.Member("A", (string)null!)`로 바꾼다. 단언(ParamName
+        `value`)과 다른 테스트는 바꾸지 마라. 이유: 기존 enum 출력과 검사 규칙은 그대로여야 한다.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: Doc(이유: 스텝 s5·s6), enum 멤버 사이 빈 줄이나 마지막 멤버 뒤 쉼표(이유: 기존 출력 규칙), CSharp.cs 변경(이유: 위
+      진입점 금지 이유와 같다), 값 검증(이유: ADR-004).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/EnumMemberBuilder.cs
+      - src/Codrio/Builders/EnumBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/EnumMemberBuilderTests.cs
+      - tests/Codrio.Tests/Builders/EnumBuilderTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s5-type-docs
+    title: add DocBuilder and XML documentation for type declarations
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·3의 XML 문서 설명, 5·6), docs/ARCHITECTURE.md("디렉토리 구조"의 Rendering/, "레이어 규칙",
+      "횡단 관심사"), docs/ADR.md(ADR-004·005·006), src/Codrio/Rendering/CodeWriter.cs, src/Codrio/Rendering/Identifier.cs,
+      src/Codrio/Rendering/AttributeSyntax.cs, src/Codrio/Builders/TypeBuilder.cs(Attribute·WritePreamble), src/Codrio/Builders/BodyBuilder.cs
+      (람다로 받는 조각 빌더와 CodeWriter 기반 ToString 예), src/Codrio/PublicAPI.Unshipped.txt, tests/Codrio.Tests/Rendering/CodeWriterTests.cs,
+      tests/Codrio.Tests/Builders/TypeAttributeTests.cs, tests/Codrio.Tests/TestSupport/CompilationAssert.cs.
+
+      XML 문서 빌더와 이스케이프 헬퍼를 만들고 모든 타입 빌더(enum 포함)에 Doc을 붙인다. 멤버와 enum 멤버의 Doc은 스텝 s6에서 같은
+      DocBuilder로 붙인다.
+
+      internal 헬퍼:
+      - 새 src/Codrio/Rendering/XmlText.cs(`namespace Codrio.Rendering;`): `internal static class XmlText`, `internal static string
+        Escape(string text)`: `&` → `&amp;`(먼저), `<` → `&lt;`, `>` → `&gt;`. 따옴표는 바꾸지 않는다. 이유: 요소 내용에서 따옴표는 특수
+        문자가 아니고, 문서 텍스트를 읽기 쉽게 둔다. 이미 이스케이프된 것처럼 보이는 입력도 다시 이스케이프한다(`&amp;` → `&amp;amp;`).
+      - CodeWriter: `internal void WriteDocumentationComment(string text)`: `\r\n`을 `\n`으로 바꾸고 줄마다 현재 들여쓰기 + `/// <줄>`을
+        쓴다. 빈 줄은 뒤 공백 없이 `///`만 쓴다. 기존 메서드의 동작은 바꾸지 마라. 이유: 줄 나누기와 들여쓰기는 CodeWriter만 한다(ARCHITECTURE
+        레이어 규칙).
+
+      공개 API:
+      - 새 src/Codrio/Builders/DocBuilder.cs: `public sealed class DocBuilder`, internal 생성자, internal 필드 `List<string> elements`(추가 순서).
+        - `DocBuilder Summary(string text)` → `<summary>` + 이스케이프한 text + `</summary>`.
+        - `DocBuilder Param(string name, string text)` → `<param name="<이름>">` + 이스케이프한 text + `</param>`. name은
+          `Identifier.ValidateAndEscape(name, nameof(name))`로 검증·이스케이프한다(키워드면 `@class`). 이유: 이 라이브러리의 모든 이름 규칙과
+          같고, 식별자는 XML 특수 문자를 담을 수 없어 속성 값 이스케이프가 필요 없다.
+        - `DocBuilder Returns(string text)` → `<returns>` + 이스케이프한 text + `</returns>`.
+        - `DocBuilder Xml(string xml)` → 이스케이프 없이 그대로.
+        - 요소 문자열은 호출 시점에 만들어 목록 끝에 추가한다. 같은 메서드를 여러 번 호출하면 그만큼 요소가 나온다(호출 순서 그대로, 중복
+          제거나 정렬 없음). null이면 ArgumentNullException(ParamName `text`, `name`, `xml`).
+        - `internal void Write(CodeWriter writer)`: 요소마다 `writer.WriteDocumentationComment(element)`. `public override string ToString()`:
+          새 CodeWriter에 Write한 결과(요소가 없으면 빈 문자열).
+      - TypeBuilder<TSelf>: internal 필드 `DocBuilder? doc`, `public TSelf Doc(Action<DocBuilder> configure)`: configure null 검사(ParamName
+        `configure`) → 새 DocBuilder → 람다 즉시 한 번 실행 → doc에 넣는다. 다시 호출하면 이전 문서를 대체한다(마지막 호출이 이김, Body와
+        같은 자리 규칙). WritePreamble은 맨 앞에서 `doc?.Write(writer)`를 하고 그다음 attribute 줄을 쓴다. TypeDeclarationBuilder·EnumBuilder는
+        고치지 마라. 이유: 스텝 s1부터 둘 다 WritePreamble을 호출한다.
+      람다 없는 `Doc()` 오버로드를 만들지 마라. 이유: 빈 문서는 출력이 없어 의미가 없고, 선택적 매개변수도 쓰지 않는다. Summary·Param·Returns·Xml
+      외의 메서드(Remarks, TypeParam, Value, Exception, See 등)를 만들지 마라. 이유: 작업이 이 넷만 정했고 나머지 태그는 `Xml(raw)`로 넣는다.
+
+      출력 규칙:
+      - 선언 앞 줄 순서는 문서 줄, attribute 줄, 선언 줄이다(Doc과 Attribute의 호출 순서와 무관).
+      - 요소는 한 요소가 한 줄에서 시작하는 인라인 형식이다. 텍스트에 줄바꿈이 있으면 이어지는 줄마다 `/// `가 붙는다.
+      - 예: `CSharp.Class("Widget", c => c.Public().Attribute("Serializable").Doc(d => d.Summary("Represents a widget.")
+        .Xml("<remarks>See <see cref=\"Gadget\"/>.</remarks>"))).ToString()` →
+        `/// <summary>Represents a widget.</summary>\n/// <remarks>See <see cref="Gadget"/>.</remarks>\n[Serializable]\npublic class Widget\n{\n}\n`.
+        `d.Summary("Returns a < b && c > d.")` → `/// <summary>Returns a &lt; b &amp;&amp; c &gt; d.</summary>\n`.
+        `d.Summary("First line.\r\n\nThird line.")` → `/// <summary>First line.\n///\n/// Third line.</summary>\n`.
+        `d.Param("class", "The class.").Returns("The value.")` → `/// <param name="@class">The class.</param>\n/// <returns>The value.</returns>\n`.
+
+      문서와 PublicAPI: 새 공개 타입·멤버에 영어 XML 문서(summary, param, returns, exception). DocBuilder 클래스 remarks에 가변·스레드 안전하지
+      않음, 호출 순서 출력, 이스케이프 범위(Summary·Param·Returns 텍스트만, Xml은 원시), 여러 줄 처리를 적고, TypeBuilder remarks에 선언 앞 줄
+      순서를 적는다. RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예: `Codrio.TypeBuilder<TSelf>.Doc(System.Action<Codrio.DocBuilder!>!
+      configure) -> TSelf!`, `override Codrio.DocBuilder.ToString() -> string!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - 새 tests/Codrio.Tests/Builders/DocBuilderTests.cs(DocBuilder는 `CSharp.Class("C", c => c.Doc(d => ...))` 람다로 얻는다),
+        `OutputAssert.Equal`로: 네 요소 각각의 형식, 호출 순서와 같은 요소 반복, Summary·Param·Returns의 `&`·`<`·`>` 이스케이프(Theory)와
+        따옴표 유지, `&amp;` 재이스케이프, Xml은 이스케이프하지 않음, 여러 줄 텍스트와 `\r\n` 정규화, 빈 줄 `///`, 여러 줄 Xml, Param 키워드
+        이름 `@class`와 이미 `@`가 붙은 이름, 잘못된 Param 이름이 호출 시점에 ArgumentException(ParamName `name`), DocBuilder.ToString(요소
+        없으면 빈 문자열), Doc 람다 즉시 한 번 실행, Doc 두 번 호출 시 마지막만 남음, 빈 람다 `Doc(_ => { })`는 출력 없음, 위 예시처럼 문서·
+        attribute·선언 순서(Attribute를 Doc보다 먼저 호출해도), class·struct·interface·record(본문 없는 `;` 형식 포함)·record struct·enum
+        각각의 Doc, 중첩 타입·블록 namespace 안 `///` 줄 들여쓰기, 타입 본문에서 앞 항목과의 빈 줄 1개가 문서 줄 앞에 들어감, Add로 넣은
+        타입과 Add 뒤에 바꾼 Doc 반영, null 인자(`text`, `name`, `xml`, `configure`), 체이닝 반환값(`Assert.Same`).
+      - 같은 파일에 private 헬퍼를 두어 출력 문서가 올바른 XML인지 확인한다: `CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(
+        LanguageVersion.Latest, DocumentationMode.Diagnose)).GetDiagnostics()`에 Id가 `CS1570`(형식이 잘못된 XML 주석)인 진단이 없음을 단언한다.
+        헬퍼가 실제로 잡는지 보이려고, 이스케이프하지 않은 `/// <summary>a < b</summary>`를 Raw로 넣은 소스에서는 CS1570이 나온다는 테스트도
+        둔다. 그리고 `<`, `&`, `>`가 든 Summary·Param·Returns와 여러 줄 Xml을 가진 타입들의 완결 파일에서 CS1570이 없음을 단언한다.
+      - tests/Codrio.Tests/Rendering/CodeWriterTests.cs에 추가: 들여쓰기 0과 블록 안에서 `WriteDocumentationComment`의 줄별 `/// `, 빈 줄
+        `///`, `\r\n` 정규화, 이어지는 줄의 들여쓰기.
+      - `CompilationAssert.NoErrors`: using과 블록 namespace 안에 문서와 attribute가 함께 있는 class, `Xml("<typeparam name=\"T\">...</typeparam>")`을
+        가진 제네릭 class, Param 문서가 있는 record(주 생성자 매개변수), 문서가 있는 enum·interface·struct, 문서가 있는 중첩 class를 담은 완결
+        파일. 문서 관련 진단(CS1570, CS1572, CS1591 등)은 경고라 오류 검증에 영향이 없다. 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: 멤버와 enum 멤버의 Doc(이유: 스텝 s6), `<summary>`를 여러 줄 블록(`/// <summary>` 줄, 텍스트 줄, `/// </summary>` 줄)으로 쓰기
+      (이유: 위 인라인 형식이 이 계획의 고정 포맷이다, ADR-005), CSharp의 Doc 진입점이나 `Add(DocBuilder)`(이유: 문서는 BodyBuilder처럼
+      람다로만 만드는 조각이다), FileBuilder·NamespaceBuilder·ParameterBuilder의 Doc(이유: C#에서 그 위치의 문서는 의미가 없거나 작업이
+      제외했다), XML 유효성 검사나 Xml 입력 파싱(이유: ADR 원칙, 원시 입력은 그대로 쓴다), 문자열 리터럴 이스케이프 헬퍼(이유: PRD 범위 밖).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Rendering/XmlText.cs
+      - src/Codrio/Rendering/CodeWriter.cs
+      - src/Codrio/Builders/DocBuilder.cs
+      - src/Codrio/Builders/TypeBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/DocBuilderTests.cs
+      - tests/Codrio.Tests/Rendering/CodeWriterTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
+
+  - id: s6-member-docs
+    title: add XML documentation to members and enum members
+    type: feat
+    scope: builders
+    timeout_sec: 2400
+    description: |
+      먼저 읽을 파일: docs/PRD.md(핵심 기능 2·3·6·7, 공통 완료 기준), docs/ADR.md(ADR-003·006), src/Codrio/Builders/DocBuilder.cs,
+      src/Codrio/Builders/TypeBuilder.cs(Doc과 WritePreamble의 문서 → attribute 순서), src/Codrio/Builders/MemberBuilder.cs,
+      src/Codrio/Builders/EnumMemberBuilder.cs, src/Codrio/Builders/EnumBuilder.cs, src/Codrio/PublicAPI.Unshipped.txt,
+      tests/Codrio.Tests/Builders/DocBuilderTests.cs, tests/Codrio.Tests/Builders/EnumMemberBuilderTests.cs,
+      tests/Codrio.Tests/Builders/MemberAttributeTests.cs, tests/Codrio.Tests/Builders/MemberCompositionTests.cs(통합 테스트 구성 예).
+
+      모든 멤버 빌더(델리게이트 포함)와 enum 멤버에 Doc을 붙이고, attribute와 문서를 모든 위치에 섞어 쓴 통합 테스트로 계획을 마무리한다.
+
+      공개 API:
+      - MemberBuilder<TSelf>: internal 필드 `DocBuilder? doc`, `public TSelf Doc(Action<DocBuilder> configure)`. 스텝 s5의 TypeBuilder.Doc과
+        같은 의미(configure null 검사, 새 DocBuilder로 즉시 한 번 실행, 마지막 호출이 이김)다. WritePreamble은 맨 앞에서 `doc?.Write(writer)`를
+        하고 그다음 attribute 줄을 쓴다. 각 멤버 빌더의 Write는 고치지 마라. 이유: 스텝 s2부터 모두 WritePreamble을 호출한다.
+      - EnumMemberBuilder: internal 필드 `DocBuilder? doc`, `public EnumMemberBuilder Doc(Action<DocBuilder> configure)`(같은 의미),
+        WritePreamble 맨 앞에서 문서를 쓴다. EnumBuilder는 고치지 마라.
+      DocBuilder·TypeBuilder를 고치지 마라. 이유: 문서 형식과 타입 문서는 스텝 s5에서 끝났다. 람다 없는 `Doc()`도 만들지 마라(스텝 s5와 같은
+      이유).
+
+      출력 규칙과 예:
+      - `CSharp.Method("Run", m => m.Public().Returns("int").Parameter("int", "count").Attribute("Obsolete")
+        .Doc(d => d.Summary("Runs the job.").Param("count", "The number of runs.").Returns("The result.")).Arrow("count")).ToString()` →
+        `/// <summary>Runs the job.</summary>\n/// <param name="count">The number of runs.</param>\n/// <returns>The result.</returns>\n[Obsolete]\npublic int Run(int count) => count;\n`.
+      - enum 멤버: `CSharp.Enum("Color", e => e.Member("Red", m => m.Doc(d => d.Summary("Red."))).Member("Green"))` →
+        `enum Color\n{\n    /// <summary>Red.</summary>\n    Red,\n    Green\n}\n`(멤버 사이 빈 줄 없음, 쉼표는 이름 줄 끝).
+
+      문서와 PublicAPI: 새 공개 멤버에 영어 XML 문서(summary, param, returns, exception), MemberBuilder·EnumMemberBuilder remarks에 선언 앞 줄
+      순서(문서, attribute, 선언), RS0016 메시지 문자열 그대로 PublicAPI.Unshipped.txt 항목(예: `Codrio.MemberBuilder<TSelf>.Doc(System.Action<
+      Codrio.DocBuilder!>! configure) -> TSelf!`). PublicAPI.Shipped.txt는 건드리지 마라.
+
+      테스트:
+      - tests/Codrio.Tests/Builders/DocBuilderTests.cs에 추가, `OutputAssert.Equal`로: 8개 멤버(method·field·constructor·property·indexer·
+        event·delegate·operator) 각각의 단독 ToString에서 문서 → attribute → 선언 순서(Attribute를 Doc보다 먼저 호출해도), 블록 형식 속성·
+        Body 메서드·생성자처럼 여러 줄 멤버의 문서 위치, 타입 본문에서 문서가 있는 멤버 사이 빈 줄 1개와 중첩 class 안 `///` 들여쓰기,
+        FileBuilder·블록 namespace의 delegate 문서, 따로 만들어 Add한 멤버와 Add 뒤에 바꾼 Doc 반영, Doc 마지막 호출이 이김, 빈 Doc, Doc
+        람다 즉시 한 번 실행, null `configure`, 8개 멤버 빌더 각각의 Doc 체이닝 반환값(`Assert.Same`).
+      - tests/Codrio.Tests/Builders/EnumMemberBuilderTests.cs에 추가: 위 enum 예시, 문서와 attribute가 모두 있는 멤버의 순서, 첫·마지막
+        멤버 문서와 쉼표 위치, EnumMemberBuilder.ToString에 문서 포함, Doc 마지막 호출, null `configure`, 체이닝 반환값.
+      - 새 tests/Codrio.Tests/Builders/AttributeDocCompositionTests.cs: 헤더·using·블록 namespace 안에 문서와 attribute를 가진
+        `[System.AttributeUsage(System.AttributeTargets.All, AllowMultiple = true)]` `TagAttribute` class, 문서와 attribute가 있는 delegate, 문서가
+        있는 `[Flags]` enum과 문서·attribute가 있는 멤버, 문서가 있는 메서드·속성을 가진 interface, 그 interface를 구현하며 문서·attribute가 있는
+        필드·생성자(매개변수 attribute 포함)·메서드(`[return: ...]`, `CallerMemberName` 매개변수)·속성·인덱서·이벤트를 가진 class, 문서가 있는
+        연산자를 가진 struct, `Param` 문서와 주 생성자 매개변수 attribute를 가진 record를 두고, 요소를 람다와 `CSharp.*` + `Add()` 두 방식으로
+        섞은 완결 파일 하나의 기대 문자열 정확 일치와 `CompilationAssert.NoErrors`. 문서 텍스트에 `<`·`&`가 든 Summary와 여러 줄 Summary, 여러 줄
+        Xml(remarks)을 포함한다. 그리고 같은 namespace 내용을 파일 범위 namespace로 만든 파일의 `CompilationAssert.NoErrors`. 참조는 모두 같은
+        파일이나 BCL로 해석되게 한다(PRD 공통 완료 기준).
+      주의: attribute 대상 종류(CS0592), AllowMultiple 아닌 attribute 중복(CS0579), CallerMemberName의 기본값(CS4021), Conditional 제약
+      (CS0577, CS0578, CS0243, CS0629), interface·abstract 멤버 구현(CS0535, CS0534), class·struct 연산자의 `public static`(CS0558), record에 `==`/`!=`를 선언하지
+      않음(CS0111)을 지킨다. 파일 범위 namespace는 다른 최상위 멤버보다 앞이어야 한다(CS8956). 기존 테스트 기대값은 바꾸지 마라.
+
+      테스트 코드 자체에서 record·init·required를 쓰지 마라(컴파일할 문자열 소스 안은 괜찮다). 이유: 테스트 프로젝트도 net48로 빌드되는데
+      IsExternalInit가 없다.
+      하지 마라: 매개변수·접근자·타입 매개변수의 Doc(이유: 작업이 매개변수에는 attribute만, 그 밖의 조각은 대상에서 제외했다), DocBuilder 형식
+      변경(이유: 스텝 s5에서 고정했다), System.Type·제네릭 오버로드(이유: 다음 작업), `[assembly: ...]`와 주석·전처리기 전용 API(이유: PRD 범위
+      밖, Raw()로 대신한다).
+      끝내기 전에 `dotnet build-server shutdown`을 실행한다. 이유: dotnet 명령이 남긴 MSBuild 노드·컴파일러 서버 프로세스가 세션 종료를
+      막을 수 있다.
+    expected_files:
+      - src/Codrio/Builders/MemberBuilder.cs
+      - src/Codrio/Builders/EnumMemberBuilder.cs
+      - src/Codrio/PublicAPI.Unshipped.txt
+      - tests/Codrio.Tests/Builders/DocBuilderTests.cs
+      - tests/Codrio.Tests/Builders/EnumMemberBuilderTests.cs
+      - tests/Codrio.Tests/Builders/AttributeDocCompositionTests.cs
+    ac:
+      - dotnet build Codrio.slnx -c Release
+      - dotnet test Codrio.slnx
