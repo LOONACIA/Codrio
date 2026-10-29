@@ -52,6 +52,33 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates a property declaration with get and set accessors.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new property builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static PropertyBuilder Property(string type, string name) => new(type, name);
+
+    /// <summary>Creates a property builder and configures it immediately.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured property builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public static PropertyBuilder Property(string type, string name, Action<PropertyBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = Property(type, name);
+        configure(builder);
+        return builder;
+    }
+
     /// <summary>Creates a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
     /// <returns>A new method builder.</returns>

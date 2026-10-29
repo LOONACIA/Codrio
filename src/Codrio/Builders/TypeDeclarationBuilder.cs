@@ -110,6 +110,38 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds a property declaration with get and set accessors.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Property(string type, string name) => Add(CSharp.Property(type, name));
+
+    /// <summary>Immediately configures a new property builder and adds it to the declaration.</summary>
+    /// <param name="type">The type reference, written without validation.</param>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Property(string type, string name, Action<PropertyBuilder> configure) => Add(CSharp.Property(type, name, configure));
+
+    /// <summary>Adds the supplied property builder by reference without copying it.</summary>
+    /// <param name="propertyBuilder">The property builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="propertyBuilder"/> is null.</exception>
+    public TSelf Add(PropertyBuilder propertyBuilder)
+    {
+        if (propertyBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(propertyBuilder));
+        }
+
+        items.Add(propertyBuilder.Write);
+        return (TSelf)this;
+    }
+
     /// <summary>Adds a method declaration with a void return type and no body.</summary>
     /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
     /// <returns>This type builder.</returns>
