@@ -78,6 +78,7 @@ public sealed class ConstructorBuilder : MemberBuilder<ConstructorBuilder>
 
     internal void Write(CodeWriter writer, string typeName)
     {
+        WritePreamble(writer);
         writer.WriteLine(RenderModifiers() + typeName + "(" +
             string.Join(", ", parameters.ConvertAll(parameter => parameter.RenderParameter())) + ")");
         writer.OpenBlock();

@@ -1,10 +1,12 @@
+using System;
+using System.Collections.Generic;
 using Codrio.Rendering;
 
 namespace Codrio;
 
 /// <summary>Provides accessibility and common modifiers for a member declaration.</summary>
 /// <typeparam name="TSelf">The concrete builder type returned by fluent methods.</typeparam>
-/// <remarks>Builders are mutable and are not thread-safe. Modifier combinations are not validated.</remarks>
+/// <remarks>Builders are mutable and are not thread-safe. Modifier combinations are not validated. Documentation lines precede attribute lines, followed by the declaration. Attributes are written in addition order.</remarks>
 public abstract class MemberBuilder<TSelf> where TSelf : MemberBuilder<TSelf>
 {
     internal string? accessibility;
@@ -15,6 +17,8 @@ public abstract class MemberBuilder<TSelf> where TSelf : MemberBuilder<TSelf>
     internal bool isSealed;
     internal bool isOverride;
     internal bool isReadOnly;
+    internal readonly List<string> attributes = new();
+    internal DocBuilder? doc;
 
     internal MemberBuilder()
     {
@@ -122,6 +126,43 @@ public abstract class MemberBuilder<TSelf> where TSelf : MemberBuilder<TSelf>
     {
         isReadOnly = true;
         return (TSelf)this;
+    }
+
+    /// <summary>Adds an attribute before the member declaration.</summary>
+    /// <param name="name">The attribute name, written verbatim without validation, including target prefixes such as <c>return:</c>.</param>
+    /// <param name="arguments">Raw argument strings joined with <c>, </c> inside parentheses. An empty array omits the parentheses.</param>
+    /// <returns>This member builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="arguments"/>, or an element of <paramref name="arguments"/> is null.</exception>
+    public TSelf Attribute(string name, params string[] arguments)
+    {
+        attributes.Add(AttributeSyntax.Render(name, arguments));
+        return (TSelf)this;
+    }
+
+    /// <summary>Immediately configures documentation, replacing any previous documentation.</summary>
+    /// <param name="configure">The action to run once on a new documentation builder.</param>
+    /// <returns>This member builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    public TSelf Doc(Action<DocBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new DocBuilder();
+        configure(builder);
+        doc = builder;
+        return (TSelf)this;
+    }
+
+    internal void WritePreamble(CodeWriter writer)
+    {
+        doc?.Write(writer);
+        foreach (var attribute in attributes)
+        {
+            writer.WriteLine(attribute);
+        }
     }
 
     internal string RenderModifiers()

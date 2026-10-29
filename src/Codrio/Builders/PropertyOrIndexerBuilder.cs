@@ -118,6 +118,7 @@ public abstract class PropertyOrIndexerBuilder<TSelf> : MemberBuilder<TSelf>
 
     internal void WriteDeclaration(CodeWriter writer, string head, string? initializer)
     {
+        WritePreamble(writer);
         if (expression is not null)
         {
             writer.WriteLine(head + " => " + expression + ";");

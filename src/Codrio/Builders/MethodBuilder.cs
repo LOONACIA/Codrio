@@ -160,6 +160,7 @@ public sealed class MethodBuilder : MemberBuilder<MethodBuilder>
 
     internal override void Write(CodeWriter writer)
     {
+        WritePreamble(writer);
         var declaration = RenderModifiers();
         if (isAsync)
         {

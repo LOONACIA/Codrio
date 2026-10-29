@@ -21,6 +21,14 @@ internal sealed class CodeWriter
         }
     }
 
+    internal void WriteDocumentationComment(string text)
+    {
+        foreach (var line in text.Replace("\r\n", "\n").Split('\n'))
+        {
+            WriteLine(line.Length == 0 ? "///" : "/// " + line);
+        }
+    }
+
     internal void WriteBlankLine()
     {
         builder.Append('\n');

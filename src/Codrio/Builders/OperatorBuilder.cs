@@ -98,6 +98,7 @@ public sealed class OperatorBuilder : MemberBuilder<OperatorBuilder>
 
     internal override void Write(CodeWriter writer)
     {
+        WritePreamble(writer);
         var declaration = RenderModifiers() + head + "(" +
             string.Join(", ", parameters.ConvertAll(parameter => parameter.RenderParameter())) + ")";
 

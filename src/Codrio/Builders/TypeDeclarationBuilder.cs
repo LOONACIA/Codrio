@@ -504,6 +504,7 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
 
     internal override void Write(CodeWriter writer)
     {
+        WritePreamble(writer);
         var declaration = accessibility is null ? "" : accessibility + " ";
         if (isStatic)
         {

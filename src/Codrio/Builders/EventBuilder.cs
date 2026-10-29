@@ -18,6 +18,7 @@ public sealed class EventBuilder : MemberBuilder<EventBuilder>
 
     internal override void Write(CodeWriter writer)
     {
+        WritePreamble(writer);
         writer.WriteLine(RenderModifiers() + "event " + type + " " + name + ";");
     }
 }
