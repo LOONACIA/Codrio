@@ -626,7 +626,7 @@ public class MethodBuilderTests
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Method(null!, null!));
         Assert.False(configured);
         var method = CSharp.Method("Run").Returns("int");
-        Assert.Throws<ArgumentNullException>("type", () => method.Returns(null!));
+        Assert.Throws<ArgumentNullException>("type", () => method.Returns((string)null!));
         OutputAssert.Equal("int Run();\n", method.ToString());
 
         AssertNullArguments(CSharp.Class("Outer"));

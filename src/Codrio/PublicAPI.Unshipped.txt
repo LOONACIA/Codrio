@@ -27,6 +27,8 @@ Codrio.DelegateBuilder
 Codrio.DelegateBuilder.Parameter(string! type, string! name) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.Returns(string! type) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Returns(System.Type! type) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Returns<T>() -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.TypeParameter(string! name) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
 Codrio.DocBuilder
@@ -106,6 +108,8 @@ Codrio.MethodBuilder.Parameter(string! type, string! name) -> Codrio.MethodBuild
 Codrio.MethodBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Partial() -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Returns(string! type) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Returns(System.Type! type) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Returns<T>() -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.TypeParameter(string! name) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.NamespaceBuilder

@@ -33,6 +33,19 @@ public sealed class DelegateBuilder : MemberBuilder<DelegateBuilder>
         return this;
     }
 
+    /// <summary>Sets the return type from a <see cref="Type"/>, replacing any previous return type.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>This delegate builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public DelegateBuilder Returns(Type type) => Returns(TypeName.Render(type, nameof(type)));
+
+    /// <summary>Sets the return type from <typeparamref name="T"/>, replacing any previous return type.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>This delegate builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public DelegateBuilder Returns<T>() => Returns(typeof(T));
+
     /// <summary>Adds a parameter to the end of the parameter list.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <param name="name">The parameter identifier. Reserved keywords are escaped.</param>
