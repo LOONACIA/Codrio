@@ -9,7 +9,7 @@ namespace Codrio;
 public sealed class EnumBuilder : TypeBuilder<EnumBuilder>
 {
     internal string? underlyingType;
-    internal readonly List<string> members = new();
+    internal readonly List<EnumMemberBuilder> members = new();
 
     internal EnumBuilder(string name) : base(name)
     {
@@ -37,7 +37,7 @@ public sealed class EnumBuilder : TypeBuilder<EnumBuilder>
     /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
     public EnumBuilder Member(string name)
     {
-        members.Add(Identifier.ValidateAndEscape(name, nameof(name)));
+        members.Add(new EnumMemberBuilder(name, null));
         return this;
     }
 
@@ -54,7 +54,51 @@ public sealed class EnumBuilder : TypeBuilder<EnumBuilder>
             throw new ArgumentNullException(nameof(value));
         }
 
-        members.Add(Identifier.ValidateAndEscape(name, nameof(name)) + " = " + value);
+        members.Add(new EnumMemberBuilder(name, value));
+        return this;
+    }
+
+    /// <summary>Immediately configures a new member without an explicit value and adds it.</summary>
+    /// <param name="name">The member identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new member builder.</param>
+    /// <returns>This enum builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public EnumBuilder Member(string name, Action<EnumMemberBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        var builder = new EnumMemberBuilder(name, null);
+        configure(builder);
+        members.Add(builder);
+        return this;
+    }
+
+    /// <summary>Immediately configures a new member with an explicit value expression and adds it.</summary>
+    /// <param name="name">The member identifier. Reserved keywords are escaped.</param>
+    /// <param name="value">The value expression, written without validation.</param>
+    /// <param name="configure">The action to run once on the new member builder.</param>
+    /// <returns>This enum builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="value"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public EnumBuilder Member(string name, string value, Action<EnumMemberBuilder> configure)
+    {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        if (value is null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        var builder = new EnumMemberBuilder(name, value);
+        configure(builder);
+        members.Add(builder);
         return this;
     }
 
@@ -72,7 +116,7 @@ public sealed class EnumBuilder : TypeBuilder<EnumBuilder>
         writer.OpenBlock();
         for (var i = 0; i < members.Count; i++)
         {
-            writer.WriteLine(members[i] + (i < members.Count - 1 ? "," : ""));
+            members[i].Write(writer, i < members.Count - 1 ? "," : "");
         }
 
         writer.CloseBlock();

@@ -32,7 +32,11 @@ Codrio.DelegateBuilder.TypeParameter(string! name, System.Action<Codrio.TypePara
 Codrio.EnumBuilder
 Codrio.EnumBuilder.Member(string! name) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, string! value) -> Codrio.EnumBuilder!
+Codrio.EnumBuilder.Member(string! name, string! value, System.Action<Codrio.EnumMemberBuilder!>! configure) -> Codrio.EnumBuilder!
+Codrio.EnumBuilder.Member(string! name, System.Action<Codrio.EnumMemberBuilder!>! configure) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.UnderlyingType(string! type) -> Codrio.EnumBuilder!
+Codrio.EnumMemberBuilder
+Codrio.EnumMemberBuilder.Attribute(string! name, params string![]! arguments) -> Codrio.EnumMemberBuilder!
 Codrio.EventBuilder
 Codrio.FieldBuilder
 Codrio.FieldBuilder.Const() -> Codrio.FieldBuilder!
@@ -206,6 +210,7 @@ Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParamet
 override Codrio.AccessorBuilder.ToString() -> string!
 override Codrio.BodyBuilder.ToString() -> string!
 override Codrio.ConstructorBuilder.ToString() -> string!
+override Codrio.EnumMemberBuilder.ToString() -> string!
 override Codrio.FileBuilder.ToString() -> string!
 override Codrio.MemberBuilder<TSelf>.ToString() -> string!
 override Codrio.NamespaceBuilder.ToString() -> string!

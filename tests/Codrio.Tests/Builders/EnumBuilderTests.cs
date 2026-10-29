@@ -237,7 +237,7 @@ public class EnumBuilderTests
         Assert.Throws<ArgumentNullException>("enumBuilder", () => outer.Add((EnumBuilder)null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Member(null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Member(null!, "1"));
-        Assert.Throws<ArgumentNullException>("value", () => builder.Member("A", null!));
+        Assert.Throws<ArgumentNullException>("value", () => builder.Member("A", (string)null!));
         Assert.Throws<ArgumentNullException>("type", () => builder.UnderlyingType(null!));
         Assert.False(configured);
         OutputAssert.Equal("", file.ToString());
