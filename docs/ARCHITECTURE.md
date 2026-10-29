@@ -4,25 +4,41 @@
 
 ## 디렉토리 구조
 ```
-{예:
-src/
-├── api/        # HTTP 핸들러. 비즈니스 로직 없음
-├── services/   # 유스케이스 단위 로직
-├── repo/       # 영속성. services에서만 호출
-└── domain/     # 타입과 불변 규칙
-}
+Codrio.slnx
+global.json                    # SDK 10.0.x 고정
+Directory.Build.props          # 공통 빌드 속성, 버전(0.1.0), 패키지 메타데이터
+LICENSE                        # MIT
+.github/workflows/ci.yml       # Windows 러너에서 빌드·테스트
+src/Codrio/                    # netstandard2.0, 런타임 의존성 없음
+├── CSharp.cs                  # 진입점 정적 클래스
+├── Builders/                  # 공개 빌더. 상태와 렌더링(internal Write)을 함께 가진다
+├── Rendering/                 # CodeWriter, 식별자 검증·이스케이프, Type → C# 이름 변환, XML 이스케이프 (internal)
+├── Polyfills/                 # netstandard2.0에 없는 컴파일러 지원 타입 (internal)
+├── PublicAPI.Shipped.txt
+└── PublicAPI.Unshipped.txt
+tests/Codrio.Tests/            # xUnit v3, net10.0;net48, Microsoft.CodeAnalysis.CSharp 참조
 ```
 
 ## 레이어 규칙
-- {예: api → services → repo 방향으로만 의존한다. 역방향 import 금지. 이유: 테스트 격리}
-- {예: 외부 API 호출은 services/external/ 아래 래퍼를 통해서만}
+- 빌더가 곧 모델이다. 빌더는 상태를 internal 필드로 들고 `internal void Write(CodeWriter)`로 자기 자신을 렌더링한다. 빌더와 1:1로 대응하는 모델 노드 계층을 따로 만들지 않는다. 이유: 같은 구조를 두 번 정의하지 않는다.
+- `ToString()`은 새 `CodeWriter`를 만들어 `Write`를 호출한 결과다. 모든 빌더가 같은 방식이다.
+- 들여쓰기, 줄바꿈, 블록 열고 닫기는 `CodeWriter`만 한다. 빌더는 공백이나 `\n`을 직접 이어 붙이지 않는다.
+- 공통 기능(접근 제한자, 수식어, attribute, 문서, 제네릭 매개변수)은 `TypeBuilder<TSelf>` 같은 제네릭 기반 클래스에 두고 `TSelf`를 반환해서 체이닝 타입을 유지한다. 멤버 빌더도 같은 방식이다.
+- `src/Codrio`는 `Microsoft.CodeAnalysis`를 참조하지 않는다. Roslyn은 테스트 프로젝트에서만 쓴다.
+- 식별자 검증과 키워드 이스케이프는 `Rendering/`의 헬퍼 한 곳에서 하고, 빌더는 이름을 받는 시점에 그 헬퍼를 호출한다.
 
 ## 데이터 흐름
 ```
-{예: 요청 → api 핸들러(검증) → service(트랜잭션 경계) → repo → DB}
+사용자 호출 (CSharp.File/Class/... + 람다 또는 Add)
+  → 빌더 상태 누적 (식별자 검증·@ 이스케이프는 이 시점)
+  → ToString()
+  → Write(CodeWriter) 재귀: File → Namespace → Type → Member → Body
+  → 문자열
 ```
 
 ## 횡단 관심사
-- 에러 처리: {예: 도메인 예외는 api 레이어의 공통 핸들러에서 HTTP 코드로 변환}
-- 로깅/관측: {방식}
-- 설정: {환경 변수 로딩 위치}
+- 에러 처리: 잘못된 식별자는 받는 즉시 `ArgumentException`, null 인자는 `ArgumentNullException`을 던진다. 렌더링 단계에서는 예외를 던지지 않는다. 수식어 조합과 C# 언어 버전은 검증하지 않는다.
+- 로깅/관측: 없음.
+- 설정: 없음. 포맷 규칙은 `CodeWriter`에 고정되어 있다.
+- 스레드 안전성: 없음. 빌더는 가변이다.
+- 테스트: 출력을 기대 문자열과 정확히 비교한다. 완결된 파일 단위 출력은 `Microsoft.CodeAnalysis.CSharp`로 컴파일해 오류 진단이 0개인지 확인한다.
