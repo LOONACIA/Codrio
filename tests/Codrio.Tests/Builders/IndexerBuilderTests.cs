@@ -236,17 +236,17 @@ public class IndexerBuilderTests
     {
         var configured = false;
         Assert.Throws<ArgumentNullException>("type", () => new IndexerBuilder(null!));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.Indexer(null!));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.Indexer(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.Indexer((string)null!));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.Indexer((string)null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Indexer("int", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => CSharp.Indexer(null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => CSharp.Indexer((string)null!, null!));
         var builder = CSharp.Indexer("int");
-        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "index"));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "index", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "index"));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "index", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter("int", "index", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter((string)null!, null!, null!));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Get(null!));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Set(null!));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Init(null!));
@@ -266,10 +266,10 @@ public class IndexerBuilderTests
     {
         var configured = false;
         var before = builder.ToString();
-        Assert.Throws<ArgumentNullException>("type", () => builder.Indexer(null!));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Indexer(null!, _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Indexer((string)null!));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Indexer((string)null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Indexer("int", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => builder.Indexer(null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Indexer((string)null!, null!));
         Assert.Throws<ArgumentNullException>("indexerBuilder", () => builder.Add((IndexerBuilder)null!));
         Assert.False(configured);
         OutputAssert.Equal(before, builder.ToString());

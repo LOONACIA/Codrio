@@ -184,12 +184,12 @@ public class EventBuilderTests
     public void NullArguments_ThrowWithParameterNameBeforeConfiguringOrAdding()
     {
         var configured = false;
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.Event(null!, "Done"));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.Event(null!, "Done", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.Event((string)null!, "Done"));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.Event((string)null!, "Done", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => CSharp.Event("System.Action", null!));
         Assert.Throws<ArgumentNullException>("name", () => CSharp.Event("System.Action", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Event("System.Action", "Done", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => CSharp.Event(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => CSharp.Event((string)null!, null!, null!));
         Assert.False(configured);
 
         AssertNullArguments(CSharp.Class("Outer"));
@@ -204,12 +204,12 @@ public class EventBuilderTests
     {
         var configured = false;
         var before = builder.ToString();
-        Assert.Throws<ArgumentNullException>("type", () => builder.Event(null!, "Done"));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Event(null!, "Done", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Event((string)null!, "Done"));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Event((string)null!, "Done", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => builder.Event("System.Action", null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Event("System.Action", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Event("System.Action", "Done", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => builder.Event(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Event((string)null!, null!, null!));
         Assert.Throws<ArgumentNullException>("eventBuilder", () => builder.Add((EventBuilder)null!));
         Assert.False(configured);
         OutputAssert.Equal(before, builder.ToString());

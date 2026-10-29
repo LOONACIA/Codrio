@@ -91,7 +91,7 @@ public class ParameterBuilderTests
         {
             p.Attribute("Existing");
 
-            Assert.Throws<ArgumentNullException>("name", () => p.Attribute(null!));
+            Assert.Throws<ArgumentNullException>("name", () => p.Attribute((string)null!));
             Assert.Throws<ArgumentNullException>("arguments", () => p.Attribute("X", (string[])null!));
             Assert.Throws<ArgumentNullException>("arguments", () => p.Attribute("X", "a", null!));
             OutputAssert.Equal("[Existing] string value", p.ToString());
@@ -406,13 +406,13 @@ public class ParameterBuilderTests
         var structBuilder = CSharp.Struct("Example");
         var configured = false;
 
-        Assert.Throws<ArgumentNullException>("type", () => classBuilder.PrimaryParameter(null!, "value"));
-        Assert.Throws<ArgumentNullException>("type", () => classBuilder.PrimaryParameter(null!, "value", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => classBuilder.PrimaryParameter((string)null!, "value"));
+        Assert.Throws<ArgumentNullException>("type", () => classBuilder.PrimaryParameter((string)null!, "value", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => classBuilder.PrimaryParameter("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => classBuilder.PrimaryParameter("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => classBuilder.PrimaryParameter("int", "value", null!));
-        Assert.Throws<ArgumentNullException>("type", () => structBuilder.PrimaryParameter(null!, "value"));
-        Assert.Throws<ArgumentNullException>("type", () => structBuilder.PrimaryParameter(null!, "value", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => structBuilder.PrimaryParameter((string)null!, "value"));
+        Assert.Throws<ArgumentNullException>("type", () => structBuilder.PrimaryParameter((string)null!, "value", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => structBuilder.PrimaryParameter("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => structBuilder.PrimaryParameter("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => structBuilder.PrimaryParameter("int", "value", null!));

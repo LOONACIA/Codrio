@@ -367,13 +367,13 @@ public class DelegateBuilderTests
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Delegate("Handler", null!));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Delegate(null!, null!));
         var builder = CSharp.Delegate("Handler").Returns("int");
-        Assert.Throws<ArgumentNullException>("type", () => builder.Returns(null!));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "value"));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter(null!, "value", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Returns((string)null!));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "value"));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Parameter((string)null!, "value", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Parameter("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter("int", "value", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Parameter((string)null!, null!, null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.TypeParameter(null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.TypeParameter(null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.TypeParameter("T", null!));

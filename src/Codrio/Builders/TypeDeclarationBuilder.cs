@@ -80,6 +80,19 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds a base class or interface to the end of the base type list.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf BaseType(Type type) => BaseType(TypeName.Render(type, nameof(type)));
+
+    /// <summary>Adds a base class or interface to the end of the base type list.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf BaseType<T>() => BaseType(typeof(T));
+
     /// <summary>Adds an unconstrained type parameter.</summary>
     /// <param name="name">The type parameter identifier. Reserved keywords are escaped.</param>
     /// <returns>This type builder.</returns>
@@ -127,6 +140,40 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
     /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
     public TSelf Event(string type, string name, Action<EventBuilder> configure) => Add(CSharp.Event(type, name, configure));
 
+    /// <summary>Adds a field-like event declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Event(Type type, string name) => Add(CSharp.Event(type, name));
+
+    /// <summary>Immediately configures a new field-like event builder and adds it to the declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Event(Type type, string name, Action<EventBuilder> configure) => Add(CSharp.Event(type, name, configure));
+
+    /// <summary>Adds a field-like event declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Event<T>(string name) => Event(typeof(T), name);
+
+    /// <summary>Immediately configures a new field-like event builder and adds it to the declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Event<T>(string name, Action<EventBuilder> configure) => Event(typeof(T), name, configure);
+
     /// <summary>Adds the supplied event builder by reference without copying it.</summary>
     /// <param name="eventBuilder">The event builder to add.</param>
     /// <returns>This type builder.</returns>
@@ -159,6 +206,40 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
     /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
     public TSelf Property(string type, string name, Action<PropertyBuilder> configure) => Add(CSharp.Property(type, name, configure));
 
+    /// <summary>Adds a property declaration with get and set accessors.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Property(Type type, string name) => Add(CSharp.Property(type, name));
+
+    /// <summary>Immediately configures a new property builder and adds it to the declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Property(Type type, string name, Action<PropertyBuilder> configure) => Add(CSharp.Property(type, name, configure));
+
+    /// <summary>Adds a property declaration with get and set accessors.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Property<T>(string name) => Property(typeof(T), name);
+
+    /// <summary>Immediately configures a new property builder and adds it to the declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Property<T>(string name, Action<PropertyBuilder> configure) => Property(typeof(T), name, configure);
+
     /// <summary>Adds the supplied property builder by reference without copying it.</summary>
     /// <param name="propertyBuilder">The property builder to add.</param>
     /// <returns>This type builder.</returns>
@@ -186,6 +267,35 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
     /// <returns>This type builder.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
     public TSelf Indexer(string type, Action<IndexerBuilder> configure) => Add(CSharp.Indexer(type, configure));
+
+    /// <summary>Adds an indexer declaration with get and set accessors and no parameters.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf Indexer(Type type) => Add(CSharp.Indexer(type));
+
+    /// <summary>Immediately configures a new indexer builder and adds it to the declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf Indexer(Type type, Action<IndexerBuilder> configure) => Add(CSharp.Indexer(type, configure));
+
+    /// <summary>Adds an indexer declaration with get and set accessors and no parameters.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf Indexer<T>() => Indexer(typeof(T));
+
+    /// <summary>Immediately configures a new indexer builder and adds it to the declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf Indexer<T>(Action<IndexerBuilder> configure) => Indexer(typeof(T), configure);
 
     /// <summary>Adds the supplied indexer builder by reference without copying it.</summary>
     /// <param name="indexerBuilder">The indexer builder to add.</param>
@@ -247,6 +357,40 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
     /// <exception cref="ArgumentNullException"><paramref name="returnType"/>, <paramref name="symbol"/>, or <paramref name="configure"/> is null.</exception>
     public TSelf Operator(string returnType, string symbol, Action<OperatorBuilder> configure) => Add(CSharp.Operator(returnType, symbol, configure));
 
+    /// <summary>Adds an operator declaration with no parameters or body.</summary>
+    /// <param name="returnType">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="returnType"/> or <paramref name="symbol"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="returnType"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf Operator(Type returnType, string symbol) => Add(CSharp.Operator(returnType, symbol));
+
+    /// <summary>Immediately configures a new operator builder and adds it to the declaration.</summary>
+    /// <param name="returnType">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="returnType"/>, <paramref name="symbol"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="returnType"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf Operator(Type returnType, string symbol, Action<OperatorBuilder> configure) => Add(CSharp.Operator(returnType, symbol, configure));
+
+    /// <summary>Adds an operator declaration with no parameters or body.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="symbol"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf Operator<T>(string symbol) => Operator(typeof(T), symbol);
+
+    /// <summary>Immediately configures a new operator builder and adds it to the declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="symbol">The operator symbol, written without validation.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="symbol"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf Operator<T>(string symbol, Action<OperatorBuilder> configure) => Operator(typeof(T), symbol, configure);
+
     /// <summary>Adds an implicit conversion operator declaration with no parameters or body.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <returns>This type builder.</returns>
@@ -260,6 +404,35 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
     /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
     public TSelf ImplicitOperator(string type, Action<OperatorBuilder> configure) => Add(CSharp.ImplicitOperator(type, configure));
 
+    /// <summary>Adds an implicit conversion operator declaration with no parameters or body.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf ImplicitOperator(Type type) => Add(CSharp.ImplicitOperator(type));
+
+    /// <summary>Immediately configures a new implicit conversion operator builder and adds it to the declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf ImplicitOperator(Type type, Action<OperatorBuilder> configure) => Add(CSharp.ImplicitOperator(type, configure));
+
+    /// <summary>Adds an implicit conversion operator declaration with no parameters or body.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf ImplicitOperator<T>() => ImplicitOperator(typeof(T));
+
+    /// <summary>Immediately configures a new implicit conversion operator builder and adds it to the declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf ImplicitOperator<T>(Action<OperatorBuilder> configure) => ImplicitOperator(typeof(T), configure);
+
     /// <summary>Adds an explicit conversion operator declaration with no parameters or body.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <returns>This type builder.</returns>
@@ -272,6 +445,35 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
     /// <returns>This type builder.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
     public TSelf ExplicitOperator(string type, Action<OperatorBuilder> configure) => Add(CSharp.ExplicitOperator(type, configure));
+
+    /// <summary>Adds an explicit conversion operator declaration with no parameters or body.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf ExplicitOperator(Type type) => Add(CSharp.ExplicitOperator(type));
+
+    /// <summary>Immediately configures a new explicit conversion operator builder and adds it to the declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public TSelf ExplicitOperator(Type type, Action<OperatorBuilder> configure) => Add(CSharp.ExplicitOperator(type, configure));
+
+    /// <summary>Adds an explicit conversion operator declaration with no parameters or body.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf ExplicitOperator<T>() => ExplicitOperator(typeof(T));
+
+    /// <summary>Immediately configures a new explicit conversion operator builder and adds it to the declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public TSelf ExplicitOperator<T>(Action<OperatorBuilder> configure) => ExplicitOperator(typeof(T), configure);
 
     /// <summary>Adds the supplied operator builder by reference without copying it.</summary>
     /// <param name="operatorBuilder">The operator builder to add.</param>

@@ -16,17 +16,35 @@ Codrio.ClassOrStructBuilder<TSelf>.Constructor() -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.Constructor(System.Action<Codrio.ConstructorBuilder!>! configure) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.Field(string! type, string! name) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.Field(string! type, string! name, System.Action<Codrio.FieldBuilder!>! configure) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.Field(System.Type! type, string! name) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.Field(System.Type! type, string! name, System.Action<Codrio.FieldBuilder!>! configure) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.Field<T>(string! name) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.Field<T>(string! name, System.Action<Codrio.FieldBuilder!>! configure) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(string! type, string! name) -> TSelf!
 Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(System.Type! type, string! name) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter<T>(string! name) -> TSelf!
+Codrio.ClassOrStructBuilder<TSelf>.PrimaryParameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> TSelf!
 Codrio.ConstructorBuilder
 Codrio.ConstructorBuilder.Body() -> Codrio.ConstructorBuilder!
 Codrio.ConstructorBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.ConstructorBuilder!
 Codrio.ConstructorBuilder.Parameter(string! type, string! name) -> Codrio.ConstructorBuilder!
 Codrio.ConstructorBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter(System.Type! type, string! name) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter<T>(string! name) -> Codrio.ConstructorBuilder!
+Codrio.ConstructorBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.ConstructorBuilder!
 Codrio.DelegateBuilder
 Codrio.DelegateBuilder.Parameter(string! type, string! name) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Parameter(System.Type! type, string! name) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Parameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Parameter<T>(string! name) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.Returns(string! type) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Returns(System.Type! type) -> Codrio.DelegateBuilder!
+Codrio.DelegateBuilder.Returns<T>() -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.TypeParameter(string! name) -> Codrio.DelegateBuilder!
 Codrio.DelegateBuilder.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> Codrio.DelegateBuilder!
 Codrio.DocBuilder
@@ -40,8 +58,12 @@ Codrio.EnumBuilder.Member(string! name, string! value) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, string! value, System.Action<Codrio.EnumMemberBuilder!>! configure) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.Member(string! name, System.Action<Codrio.EnumMemberBuilder!>! configure) -> Codrio.EnumBuilder!
 Codrio.EnumBuilder.UnderlyingType(string! type) -> Codrio.EnumBuilder!
+Codrio.EnumBuilder.UnderlyingType(System.Type! type) -> Codrio.EnumBuilder!
+Codrio.EnumBuilder.UnderlyingType<T>() -> Codrio.EnumBuilder!
 Codrio.EnumMemberBuilder
 Codrio.EnumMemberBuilder.Attribute(string! name, params string![]! arguments) -> Codrio.EnumMemberBuilder!
+Codrio.EnumMemberBuilder.Attribute(System.Type! type, params string![]! arguments) -> Codrio.EnumMemberBuilder!
+Codrio.EnumMemberBuilder.Attribute<TAttribute>(params string![]! arguments) -> Codrio.EnumMemberBuilder!
 Codrio.EnumMemberBuilder.Doc(System.Action<Codrio.DocBuilder!>! configure) -> Codrio.EnumMemberBuilder!
 Codrio.EventBuilder
 Codrio.FieldBuilder
@@ -80,10 +102,16 @@ Codrio.FileBuilder.Using(string! name) -> Codrio.FileBuilder!
 Codrio.IndexerBuilder
 Codrio.IndexerBuilder.Parameter(string! type, string! name) -> Codrio.IndexerBuilder!
 Codrio.IndexerBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.IndexerBuilder!
+Codrio.IndexerBuilder.Parameter(System.Type! type, string! name) -> Codrio.IndexerBuilder!
+Codrio.IndexerBuilder.Parameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.IndexerBuilder!
+Codrio.IndexerBuilder.Parameter<T>(string! name) -> Codrio.IndexerBuilder!
+Codrio.IndexerBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.IndexerBuilder!
 Codrio.InterfaceBuilder
 Codrio.MemberBuilder<TSelf>
 Codrio.MemberBuilder<TSelf>.Abstract() -> TSelf!
 Codrio.MemberBuilder<TSelf>.Attribute(string! name, params string![]! arguments) -> TSelf!
+Codrio.MemberBuilder<TSelf>.Attribute(System.Type! type, params string![]! arguments) -> TSelf!
+Codrio.MemberBuilder<TSelf>.Attribute<TAttribute>(params string![]! arguments) -> TSelf!
 Codrio.MemberBuilder<TSelf>.Doc(System.Action<Codrio.DocBuilder!>! configure) -> TSelf!
 Codrio.MemberBuilder<TSelf>.Internal() -> TSelf!
 Codrio.MemberBuilder<TSelf>.New() -> TSelf!
@@ -104,8 +132,14 @@ Codrio.MethodBuilder.Body() -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Parameter(string! type, string! name) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter(System.Type! type, string! name) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter<T>(string! name) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Partial() -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.Returns(string! type) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Returns(System.Type! type) -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Returns<T>() -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.TypeParameter(string! name) -> Codrio.MethodBuilder!
 Codrio.MethodBuilder.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> Codrio.MethodBuilder!
 Codrio.NamespaceBuilder
@@ -135,8 +169,14 @@ Codrio.OperatorBuilder.Body() -> Codrio.OperatorBuilder!
 Codrio.OperatorBuilder.Body(System.Action<Codrio.BodyBuilder!>! configure) -> Codrio.OperatorBuilder!
 Codrio.OperatorBuilder.Parameter(string! type, string! name) -> Codrio.OperatorBuilder!
 Codrio.OperatorBuilder.Parameter(string! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.OperatorBuilder!
+Codrio.OperatorBuilder.Parameter(System.Type! type, string! name) -> Codrio.OperatorBuilder!
+Codrio.OperatorBuilder.Parameter(System.Type! type, string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.OperatorBuilder!
+Codrio.OperatorBuilder.Parameter<T>(string! name) -> Codrio.OperatorBuilder!
+Codrio.OperatorBuilder.Parameter<T>(string! name, System.Action<Codrio.ParameterBuilder!>! configure) -> Codrio.OperatorBuilder!
 Codrio.ParameterBuilder
 Codrio.ParameterBuilder.Attribute(string! name, params string![]! arguments) -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.Attribute(System.Type! type, params string![]! arguments) -> Codrio.ParameterBuilder!
+Codrio.ParameterBuilder.Attribute<TAttribute>(params string![]! arguments) -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.Default(string! expression) -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.In() -> Codrio.ParameterBuilder!
 Codrio.ParameterBuilder.Out() -> Codrio.ParameterBuilder!
@@ -157,6 +197,8 @@ Codrio.RecordBuilder
 Codrio.StructBuilder
 Codrio.TypeBuilder<TSelf>
 Codrio.TypeBuilder<TSelf>.Attribute(string! name, params string![]! arguments) -> TSelf!
+Codrio.TypeBuilder<TSelf>.Attribute(System.Type! type, params string![]! arguments) -> TSelf!
+Codrio.TypeBuilder<TSelf>.Attribute<TAttribute>(params string![]! arguments) -> TSelf!
 Codrio.TypeBuilder<TSelf>.Doc(System.Action<Codrio.DocBuilder!>! configure) -> TSelf!
 Codrio.TypeBuilder<TSelf>.Internal() -> TSelf!
 Codrio.TypeBuilder<TSelf>.Private() -> TSelf!
@@ -178,6 +220,8 @@ Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.PropertyBuilder! propertyBuilder
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.RecordBuilder! recordBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.StructBuilder! structBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.BaseType(string! type) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.BaseType(System.Type! type) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.BaseType<T>() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Class(string! name, System.Action<Codrio.ClassBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Delegate(string! name) -> TSelf!
@@ -186,21 +230,45 @@ Codrio.TypeDeclarationBuilder<TSelf>.Enum(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Enum(string! name, System.Action<Codrio.EnumBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Event(string! type, string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Event(string! type, string! name, System.Action<Codrio.EventBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Event(System.Type! type, string! name) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Event(System.Type! type, string! name, System.Action<Codrio.EventBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Event<T>(string! name) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Event<T>(string! name, System.Action<Codrio.EventBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.ExplicitOperator(string! type) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.ExplicitOperator(string! type, System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ExplicitOperator(System.Type! type) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ExplicitOperator(System.Type! type, System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ExplicitOperator<T>() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ExplicitOperator<T>(System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.ImplicitOperator(string! type) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.ImplicitOperator(string! type, System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ImplicitOperator(System.Type! type) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ImplicitOperator(System.Type! type, System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ImplicitOperator<T>() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.ImplicitOperator<T>(System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Indexer(string! type) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Indexer(string! type, System.Action<Codrio.IndexerBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Indexer(System.Type! type) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Indexer(System.Type! type, System.Action<Codrio.IndexerBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Indexer<T>() -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Indexer<T>(System.Action<Codrio.IndexerBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Interface(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Interface(string! name, System.Action<Codrio.InterfaceBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Method(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Method(string! name, System.Action<Codrio.MethodBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Operator(string! returnType, string! symbol) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Operator(string! returnType, string! symbol, System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Operator(System.Type! returnType, string! symbol) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Operator(System.Type! returnType, string! symbol, System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Operator<T>(string! symbol) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Operator<T>(string! symbol, System.Action<Codrio.OperatorBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Partial() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Property(string! type, string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Property(string! type, string! name, System.Action<Codrio.PropertyBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Property(System.Type! type, string! name) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Property(System.Type! type, string! name, System.Action<Codrio.PropertyBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Property<T>(string! name) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Property<T>(string! name, System.Action<Codrio.PropertyBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Raw(string! code) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.ReadOnly() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Record(string! name) -> TSelf!
@@ -215,6 +283,8 @@ Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name, System.Action<Codrio.TypeParameterBuilder!>! configure) -> TSelf!
 Codrio.TypeParameterBuilder
 Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParameterBuilder!
+Codrio.TypeParameterBuilder.Constraint(System.Type! type) -> Codrio.TypeParameterBuilder!
+Codrio.TypeParameterBuilder.Constraint<T>() -> Codrio.TypeParameterBuilder!
 override Codrio.AccessorBuilder.ToString() -> string!
 override Codrio.BodyBuilder.ToString() -> string!
 override Codrio.ConstructorBuilder.ToString() -> string!
@@ -236,18 +306,38 @@ static Codrio.CSharp.Enum(string! name) -> Codrio.EnumBuilder!
 static Codrio.CSharp.Enum(string! name, System.Action<Codrio.EnumBuilder!>! configure) -> Codrio.EnumBuilder!
 static Codrio.CSharp.Event(string! type, string! name) -> Codrio.EventBuilder!
 static Codrio.CSharp.Event(string! type, string! name, System.Action<Codrio.EventBuilder!>! configure) -> Codrio.EventBuilder!
+static Codrio.CSharp.Event(System.Type! type, string! name) -> Codrio.EventBuilder!
+static Codrio.CSharp.Event(System.Type! type, string! name, System.Action<Codrio.EventBuilder!>! configure) -> Codrio.EventBuilder!
+static Codrio.CSharp.Event<T>(string! name) -> Codrio.EventBuilder!
+static Codrio.CSharp.Event<T>(string! name, System.Action<Codrio.EventBuilder!>! configure) -> Codrio.EventBuilder!
 static Codrio.CSharp.ExplicitOperator(string! type) -> Codrio.OperatorBuilder!
 static Codrio.CSharp.ExplicitOperator(string! type, System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.ExplicitOperator(System.Type! type) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.ExplicitOperator(System.Type! type, System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.ExplicitOperator<T>() -> Codrio.OperatorBuilder!
+static Codrio.CSharp.ExplicitOperator<T>(System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
 static Codrio.CSharp.Field(string! type, string! name) -> Codrio.FieldBuilder!
 static Codrio.CSharp.Field(string! type, string! name, System.Action<Codrio.FieldBuilder!>! configure) -> Codrio.FieldBuilder!
+static Codrio.CSharp.Field(System.Type! type, string! name) -> Codrio.FieldBuilder!
+static Codrio.CSharp.Field(System.Type! type, string! name, System.Action<Codrio.FieldBuilder!>! configure) -> Codrio.FieldBuilder!
+static Codrio.CSharp.Field<T>(string! name) -> Codrio.FieldBuilder!
+static Codrio.CSharp.Field<T>(string! name, System.Action<Codrio.FieldBuilder!>! configure) -> Codrio.FieldBuilder!
 static Codrio.CSharp.File() -> Codrio.FileBuilder!
 static Codrio.CSharp.File(System.Action<Codrio.FileBuilder!>! configure) -> Codrio.FileBuilder!
 static Codrio.CSharp.FileScopedNamespace(string! name) -> Codrio.NamespaceBuilder!
 static Codrio.CSharp.FileScopedNamespace(string! name, System.Action<Codrio.NamespaceBuilder!>! configure) -> Codrio.NamespaceBuilder!
 static Codrio.CSharp.ImplicitOperator(string! type) -> Codrio.OperatorBuilder!
 static Codrio.CSharp.ImplicitOperator(string! type, System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.ImplicitOperator(System.Type! type) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.ImplicitOperator(System.Type! type, System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.ImplicitOperator<T>() -> Codrio.OperatorBuilder!
+static Codrio.CSharp.ImplicitOperator<T>(System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
 static Codrio.CSharp.Indexer(string! type) -> Codrio.IndexerBuilder!
 static Codrio.CSharp.Indexer(string! type, System.Action<Codrio.IndexerBuilder!>! configure) -> Codrio.IndexerBuilder!
+static Codrio.CSharp.Indexer(System.Type! type) -> Codrio.IndexerBuilder!
+static Codrio.CSharp.Indexer(System.Type! type, System.Action<Codrio.IndexerBuilder!>! configure) -> Codrio.IndexerBuilder!
+static Codrio.CSharp.Indexer<T>() -> Codrio.IndexerBuilder!
+static Codrio.CSharp.Indexer<T>(System.Action<Codrio.IndexerBuilder!>! configure) -> Codrio.IndexerBuilder!
 static Codrio.CSharp.Interface(string! name) -> Codrio.InterfaceBuilder!
 static Codrio.CSharp.Interface(string! name, System.Action<Codrio.InterfaceBuilder!>! configure) -> Codrio.InterfaceBuilder!
 static Codrio.CSharp.Method(string! name) -> Codrio.MethodBuilder!
@@ -256,8 +346,16 @@ static Codrio.CSharp.Namespace(string! name) -> Codrio.NamespaceBuilder!
 static Codrio.CSharp.Namespace(string! name, System.Action<Codrio.NamespaceBuilder!>! configure) -> Codrio.NamespaceBuilder!
 static Codrio.CSharp.Operator(string! returnType, string! symbol) -> Codrio.OperatorBuilder!
 static Codrio.CSharp.Operator(string! returnType, string! symbol, System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.Operator(System.Type! returnType, string! symbol) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.Operator(System.Type! returnType, string! symbol, System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.Operator<T>(string! symbol) -> Codrio.OperatorBuilder!
+static Codrio.CSharp.Operator<T>(string! symbol, System.Action<Codrio.OperatorBuilder!>! configure) -> Codrio.OperatorBuilder!
 static Codrio.CSharp.Property(string! type, string! name) -> Codrio.PropertyBuilder!
 static Codrio.CSharp.Property(string! type, string! name, System.Action<Codrio.PropertyBuilder!>! configure) -> Codrio.PropertyBuilder!
+static Codrio.CSharp.Property(System.Type! type, string! name) -> Codrio.PropertyBuilder!
+static Codrio.CSharp.Property(System.Type! type, string! name, System.Action<Codrio.PropertyBuilder!>! configure) -> Codrio.PropertyBuilder!
+static Codrio.CSharp.Property<T>(string! name) -> Codrio.PropertyBuilder!
+static Codrio.CSharp.Property<T>(string! name, System.Action<Codrio.PropertyBuilder!>! configure) -> Codrio.PropertyBuilder!
 static Codrio.CSharp.Record(string! name) -> Codrio.RecordBuilder!
 static Codrio.CSharp.Record(string! name, System.Action<Codrio.RecordBuilder!>! configure) -> Codrio.RecordBuilder!
 static Codrio.CSharp.RecordStruct(string! name) -> Codrio.RecordBuilder!

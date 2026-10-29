@@ -30,6 +30,19 @@ public sealed class EnumBuilder : TypeBuilder<EnumBuilder>
         return this;
     }
 
+    /// <summary>Sets the underlying type, replacing any previous underlying type.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <returns>This enum builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type.</exception>
+    public EnumBuilder UnderlyingType(Type type) => UnderlyingType(TypeName.Render(type, nameof(type)));
+
+    /// <summary>Sets the underlying type, replacing any previous underlying type.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <returns>This enum builder.</returns>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type.</exception>
+    public EnumBuilder UnderlyingType<T>() => UnderlyingType(typeof(T));
+
     /// <summary>Adds a member without an explicit value.</summary>
     /// <param name="name">The member identifier. Reserved keywords are escaped.</param>
     /// <returns>This enum builder.</returns>

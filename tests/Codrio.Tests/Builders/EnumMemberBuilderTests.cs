@@ -246,7 +246,7 @@ public class EnumMemberBuilderTests
     {
         var builder = CSharp.Enum("E").Member("A", m =>
         {
-            Assert.Throws<ArgumentNullException>("name", () => m.Attribute(null!));
+            Assert.Throws<ArgumentNullException>("name", () => m.Attribute((string)null!));
             Assert.Throws<ArgumentNullException>("arguments", () => m.Attribute("Obsolete", null!));
             Assert.Throws<ArgumentNullException>("arguments", () => m.Attribute("Obsolete", "\"message\"", null!));
             OutputAssert.Equal("A\n", m.ToString());
