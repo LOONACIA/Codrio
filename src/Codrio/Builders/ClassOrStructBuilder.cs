@@ -103,6 +103,40 @@ public abstract class ClassOrStructBuilder<TSelf> : TypeDeclarationBuilder<TSelf
     /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
     public TSelf Field(string type, string name, Action<FieldBuilder> configure) => Add(CSharp.Field(type, name, configure));
 
+    /// <summary>Adds a field declaration without an initializer.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Field(Type type, string name) => Add(CSharp.Field(type, name));
+
+    /// <summary>Immediately configures a new field builder and adds it to the declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Field(Type type, string name, Action<FieldBuilder> configure) => Add(CSharp.Field(type, name, configure));
+
+    /// <summary>Adds a field declaration without an initializer.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Field<T>(string name) => Field(typeof(T), name);
+
+    /// <summary>Immediately configures a new field builder and adds it to the declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Field<T>(string name, Action<FieldBuilder> configure) => Field(typeof(T), name, configure);
+
     /// <summary>Adds the supplied field builder by reference without copying it.</summary>
     /// <param name="fieldBuilder">The field builder to add.</param>
     /// <returns>This type builder.</returns>

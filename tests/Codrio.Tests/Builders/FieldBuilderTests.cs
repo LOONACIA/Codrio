@@ -186,12 +186,12 @@ public class FieldBuilderTests
     public void NullArguments_ThrowWithParameterNameBeforeConfiguringOrAdding()
     {
         var configured = false;
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.Field(null!, "count"));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.Field(null!, "count", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.Field((string)null!, "count"));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.Field((string)null!, "count", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => CSharp.Field("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => CSharp.Field("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Field("int", "count", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => CSharp.Field(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => CSharp.Field((string)null!, null!, null!));
         Assert.False(configured);
         var field = CSharp.Field("int", "count").Initializer("1");
         Assert.Throws<ArgumentNullException>("expression", () => field.Initializer(null!));
@@ -208,12 +208,12 @@ public class FieldBuilderTests
     {
         var configured = false;
         var before = builder.ToString();
-        Assert.Throws<ArgumentNullException>("type", () => builder.Field(null!, "count"));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Field(null!, "count", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Field((string)null!, "count"));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Field((string)null!, "count", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => builder.Field("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Field("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Field("int", "count", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => builder.Field(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Field((string)null!, null!, null!));
         Assert.Throws<ArgumentNullException>("fieldBuilder", () => builder.Add((FieldBuilder)null!));
         Assert.False(configured);
         OutputAssert.Equal(before, builder.ToString());

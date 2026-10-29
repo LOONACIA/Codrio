@@ -462,12 +462,12 @@ public class PropertyBuilderTests
     public void NullArguments_ThrowWithParameterNameBeforeConfiguringOrAdding()
     {
         var configured = false;
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.Property(null!, "Count"));
-        Assert.Throws<ArgumentNullException>("type", () => CSharp.Property(null!, "Count", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.Property((string)null!, "Count"));
+        Assert.Throws<ArgumentNullException>("type", () => CSharp.Property((string)null!, "Count", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => CSharp.Property("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => CSharp.Property("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => CSharp.Property("int", "Count", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => CSharp.Property(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => CSharp.Property((string)null!, null!, null!));
         Assert.False(configured);
         var property = CSharp.Property("int", "Count").Get().Initializer("1");
         Assert.Throws<ArgumentNullException>("expression", () => property.Initializer(null!));
@@ -486,12 +486,12 @@ public class PropertyBuilderTests
     {
         var configured = false;
         var before = builder.ToString();
-        Assert.Throws<ArgumentNullException>("type", () => builder.Property(null!, "Count"));
-        Assert.Throws<ArgumentNullException>("type", () => builder.Property(null!, "Count", _ => configured = true));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Property((string)null!, "Count"));
+        Assert.Throws<ArgumentNullException>("type", () => builder.Property((string)null!, "Count", _ => configured = true));
         Assert.Throws<ArgumentNullException>("name", () => builder.Property("int", null!));
         Assert.Throws<ArgumentNullException>("name", () => builder.Property("int", null!, _ => configured = true));
         Assert.Throws<ArgumentNullException>("configure", () => builder.Property("int", "Count", null!));
-        Assert.Throws<ArgumentNullException>("configure", () => builder.Property(null!, null!, null!));
+        Assert.Throws<ArgumentNullException>("configure", () => builder.Property((string)null!, null!, null!));
         Assert.Throws<ArgumentNullException>("propertyBuilder", () => builder.Add((PropertyBuilder)null!));
         Assert.False(configured);
         OutputAssert.Equal(before, builder.ToString());

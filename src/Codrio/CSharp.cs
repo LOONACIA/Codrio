@@ -1,4 +1,5 @@
 using System;
+using Codrio.Rendering;
 
 namespace Codrio;
 
@@ -52,6 +53,40 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates a field declaration without an initializer.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new field builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static FieldBuilder Field(Type type, string name) => Field(TypeName.Render(type, nameof(type)), name);
+
+    /// <summary>Creates a field builder and configures it immediately.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured field builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static FieldBuilder Field(Type type, string name, Action<FieldBuilder> configure) => Field(TypeName.Render(type, nameof(type)), name, configure);
+
+    /// <summary>Creates a field declaration without an initializer.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new field builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static FieldBuilder Field<T>(string name) => Field(typeof(T), name);
+
+    /// <summary>Creates a field builder and configures it immediately.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The field identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>The configured field builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static FieldBuilder Field<T>(string name, Action<FieldBuilder> configure) => Field(typeof(T), name, configure);
+
     /// <summary>Creates a field-like event declaration.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
@@ -79,6 +114,40 @@ public static class CSharp
         return builder;
     }
 
+    /// <summary>Creates a field-like event declaration.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new event builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static EventBuilder Event(Type type, string name) => Event(TypeName.Render(type, nameof(type)), name);
+
+    /// <summary>Creates a field-like event builder and configures it immediately.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured event builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static EventBuilder Event(Type type, string name, Action<EventBuilder> configure) => Event(TypeName.Render(type, nameof(type)), name, configure);
+
+    /// <summary>Creates a field-like event declaration.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new event builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static EventBuilder Event<T>(string name) => Event(typeof(T), name);
+
+    /// <summary>Creates a field-like event builder and configures it immediately.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The event identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured event builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static EventBuilder Event<T>(string name, Action<EventBuilder> configure) => Event(typeof(T), name, configure);
+
     /// <summary>Creates a property declaration with get and set accessors.</summary>
     /// <param name="type">The type reference, written without validation.</param>
     /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
@@ -105,6 +174,40 @@ public static class CSharp
         configure(builder);
         return builder;
     }
+
+    /// <summary>Creates a property declaration with get and set accessors.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new property builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> or <paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static PropertyBuilder Property(Type type, string name) => Property(TypeName.Render(type, nameof(type)), name);
+
+    /// <summary>Creates a property builder and configures it immediately.</summary>
+    /// <param name="type">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</param>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured property builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/>, <paramref name="name"/>, or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> cannot be written as a C# type name, such as an open generic, by-ref, or compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static PropertyBuilder Property(Type type, string name, Action<PropertyBuilder> configure) => Property(TypeName.Render(type, nameof(type)), name, configure);
+
+    /// <summary>Creates a property declaration with get and set accessors.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <returns>A new property builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static PropertyBuilder Property<T>(string name) => Property(typeof(T), name);
+
+    /// <summary>Creates a property builder and configures it immediately.</summary>
+    /// <typeparam name="T">The type, converted when this method is called to a C# type name: a <c>global::</c> qualified name, or a keyword such as <c>int</c> for types with a keyword alias.</typeparam>
+    /// <param name="name">The property identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run once on the new builder.</param>
+    /// <returns>The configured property builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><typeparamref name="T"/> cannot be written as a C# type name, such as a compiler-generated type. <paramref name="name"/> is not a valid C# identifier.</exception>
+    public static PropertyBuilder Property<T>(string name, Action<PropertyBuilder> configure) => Property(typeof(T), name, configure);
 
     /// <summary>Creates an indexer declaration with get and set accessors and no parameters.</summary>
     /// <param name="type">The type reference, written without validation.</param>
