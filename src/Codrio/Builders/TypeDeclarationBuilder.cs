@@ -110,6 +110,36 @@ public abstract class TypeDeclarationBuilder<TSelf> : TypeBuilder<TSelf>
         return (TSelf)this;
     }
 
+    /// <summary>Adds a method declaration with a void return type and no body.</summary>
+    /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Method(string name) => Add(CSharp.Method(name));
+
+    /// <summary>Immediately configures a new method builder and adds it to the declaration.</summary>
+    /// <param name="name">The method identifier. Reserved keywords are escaped.</param>
+    /// <param name="configure">The action to run on the new builder.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="configure"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is not a valid C# identifier.</exception>
+    public TSelf Method(string name, Action<MethodBuilder> configure) => Add(CSharp.Method(name, configure));
+
+    /// <summary>Adds the supplied method builder by reference without copying it.</summary>
+    /// <param name="methodBuilder">The method builder to add.</param>
+    /// <returns>This type builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="methodBuilder"/> is null.</exception>
+    public TSelf Add(MethodBuilder methodBuilder)
+    {
+        if (methodBuilder is null)
+        {
+            throw new ArgumentNullException(nameof(methodBuilder));
+        }
+
+        items.Add(methodBuilder.Write);
+        return (TSelf)this;
+    }
+
     /// <summary>Adds an empty nested class declaration.</summary>
     /// <param name="name">The class identifier. Reserved keywords are escaped.</param>
     /// <returns>This type builder.</returns>

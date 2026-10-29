@@ -36,6 +36,23 @@ Codrio.FileBuilder.Struct(string! name) -> Codrio.FileBuilder!
 Codrio.FileBuilder.Struct(string! name, System.Action<Codrio.StructBuilder!>! configure) -> Codrio.FileBuilder!
 Codrio.FileBuilder.Using(string! name) -> Codrio.FileBuilder!
 Codrio.InterfaceBuilder
+Codrio.MemberBuilder<TSelf>
+Codrio.MemberBuilder<TSelf>.Abstract() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Internal() -> TSelf!
+Codrio.MemberBuilder<TSelf>.New() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Override() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Private() -> TSelf!
+Codrio.MemberBuilder<TSelf>.PrivateProtected() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Protected() -> TSelf!
+Codrio.MemberBuilder<TSelf>.ProtectedInternal() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Public() -> TSelf!
+Codrio.MemberBuilder<TSelf>.ReadOnly() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Sealed() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Static() -> TSelf!
+Codrio.MemberBuilder<TSelf>.Virtual() -> TSelf!
+Codrio.MethodBuilder
+Codrio.MethodBuilder.Partial() -> Codrio.MethodBuilder!
+Codrio.MethodBuilder.Returns(string! type) -> Codrio.MethodBuilder!
 Codrio.NamespaceBuilder
 Codrio.NamespaceBuilder.Add(Codrio.ClassBuilder! classBuilder) -> Codrio.NamespaceBuilder!
 Codrio.NamespaceBuilder.Add(Codrio.EnumBuilder! enumBuilder) -> Codrio.NamespaceBuilder!
@@ -75,6 +92,7 @@ Codrio.TypeDeclarationBuilder<TSelf>.Abstract() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.ClassBuilder! classBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.EnumBuilder! enumBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.InterfaceBuilder! interfaceBuilder) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.MethodBuilder! methodBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.RecordBuilder! recordBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Add(Codrio.StructBuilder! structBuilder) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.BaseType(string! type) -> TSelf!
@@ -84,6 +102,8 @@ Codrio.TypeDeclarationBuilder<TSelf>.Enum(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Enum(string! name, System.Action<Codrio.EnumBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Interface(string! name) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Interface(string! name, System.Action<Codrio.InterfaceBuilder!>! configure) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Method(string! name) -> TSelf!
+Codrio.TypeDeclarationBuilder<TSelf>.Method(string! name, System.Action<Codrio.MethodBuilder!>! configure) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Partial() -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.Raw(string! code) -> TSelf!
 Codrio.TypeDeclarationBuilder<TSelf>.ReadOnly() -> TSelf!
@@ -100,6 +120,7 @@ Codrio.TypeDeclarationBuilder<TSelf>.TypeParameter(string! name, System.Action<C
 Codrio.TypeParameterBuilder
 Codrio.TypeParameterBuilder.Constraint(string! constraint) -> Codrio.TypeParameterBuilder!
 override Codrio.FileBuilder.ToString() -> string!
+override Codrio.MemberBuilder<TSelf>.ToString() -> string!
 override Codrio.NamespaceBuilder.ToString() -> string!
 override Codrio.ParameterBuilder.ToString() -> string!
 override Codrio.TypeBuilder<TSelf>.ToString() -> string!
@@ -114,6 +135,8 @@ static Codrio.CSharp.FileScopedNamespace(string! name) -> Codrio.NamespaceBuilde
 static Codrio.CSharp.FileScopedNamespace(string! name, System.Action<Codrio.NamespaceBuilder!>! configure) -> Codrio.NamespaceBuilder!
 static Codrio.CSharp.Interface(string! name) -> Codrio.InterfaceBuilder!
 static Codrio.CSharp.Interface(string! name, System.Action<Codrio.InterfaceBuilder!>! configure) -> Codrio.InterfaceBuilder!
+static Codrio.CSharp.Method(string! name) -> Codrio.MethodBuilder!
+static Codrio.CSharp.Method(string! name, System.Action<Codrio.MethodBuilder!>! configure) -> Codrio.MethodBuilder!
 static Codrio.CSharp.Namespace(string! name) -> Codrio.NamespaceBuilder!
 static Codrio.CSharp.Namespace(string! name, System.Action<Codrio.NamespaceBuilder!>! configure) -> Codrio.NamespaceBuilder!
 static Codrio.CSharp.Record(string! name) -> Codrio.RecordBuilder!
