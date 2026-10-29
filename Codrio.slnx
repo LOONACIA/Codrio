@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Codrio/Codrio.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Codrio.Tests/Codrio.Tests.csproj" />
+  </Folder>
+</Solution>
