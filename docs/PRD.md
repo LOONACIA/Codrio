@@ -46,7 +46,6 @@ C# 소스 코드를 문자열 이어 붙이기 대신 fluent 빌더로 조립해
 - 포맷 옵션 — 규칙은 고정이다.
 - 수식어 조합 검증 — 컴파일러가 잡는다.
 - Roslyn 타입(`SyntaxNode`, `SourceText`) 반환 — 의존성 0을 유지한다.
-- NuGet 자동 배포 — 준비되면 수동으로 배포한다.
 - 스레드 안전성 — 빌더는 가변이며 스레드 안전하지 않다. XML 문서에 명시한다.
 
 ## 제약
@@ -55,4 +54,5 @@ C# 소스 코드를 문자열 이어 붙이기 대신 fluent 빌더로 조립해
 - 공개 API: XML 문서 필수(CS1591을 오류로), PublicApiAnalyzers로 추적, Nullable 활성화, 경고를 오류로 처리. SemVer, 0.1.0에서 시작한다.
 - 패키지: ID와 루트 네임스페이스는 `Codrio`, 라이선스 MIT, SourceLink·결정적 빌드·snupkg.
 - 테스트: xUnit v3, net10.0과 net48. net48은 Windows에서만 실행된다.
-- CI: GitHub Actions의 Windows 러너에서 빌드·테스트만 한다.
+- CI: GitHub Actions의 Windows 러너에서 빌드·테스트한다.
+- 배포: `v*` 태그를 push하면 태그의 버전(`v0.2.0` → `0.2.0`)으로 빌드·테스트·패키징하고, Trusted Publishing으로 nuget.org에 올린다.

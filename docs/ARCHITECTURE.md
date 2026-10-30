@@ -6,9 +6,10 @@
 ```
 Codrio.slnx
 global.json                    # SDK 10.0.x 고정
-Directory.Build.props          # 공통 빌드 속성, 버전(0.1.0), 패키지 메타데이터
+Directory.Build.props          # 공통 빌드 속성, 기본 버전(0.1.0), 패키지 메타데이터
 LICENSE                        # MIT
 .github/workflows/ci.yml       # Windows 러너에서 빌드·테스트
+.github/workflows/release.yml  # v* 태그 push 시 태그 버전으로 nuget.org 배포
 src/Codrio/                    # netstandard2.0, 런타임 의존성 없음
 ├── CSharp.cs                  # 진입점 정적 클래스
 ├── Builders/                  # 공개 빌더. 상태와 렌더링(internal Write)을 함께 가진다
